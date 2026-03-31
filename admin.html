@@ -2,24 +2,32 @@
 <html lang="tr">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tur Yönetimi – Admin Paneli (SQL Server)</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tur Yolcu Paneli – Canlı Takip</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     :root {
       --bg: #030712;
-      --sidebar-bg: #111827;
-      --card-bg: #1f2937;
-      --border: rgba(255, 255, 255, 0.05);
+      --sidebar-bg: rgba(17, 24, 39, 0.82);
+      --card-bg: rgba(17, 24, 39, 0.72);
+      --card-hover: rgba(25, 36, 60, 0.95);
+      --border: rgba(255, 255, 255, 0.06);
       --text: #f9fafb;
-      --text-muted: #9ca3af;
+      --text-muted: #94a3b8;
       --accent: #60a5fa;
-      --success: #10b981;
-      --danger: #ef4444;
-      --radius: 12px;
+      --accent-glow: rgba(96, 165, 250, 0.38);
+      --glass: rgba(15, 23, 42, 0.58);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+      --danger: #ff4d4f;
+      --success: #00d084;
+      --neutral: #94a3b8;
     }
 
     * {
@@ -27,198 +35,87 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    html,
     body {
       margin: 0;
+      padding: 0;
+      min-height: 100%;
       font-family: 'Inter', sans-serif;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at top center, rgba(37, 99, 235, 0.10), transparent 30%),
+        linear-gradient(180deg, #020617 0%, #030712 100%);
       color: var(--text);
-      height: 100vh;
-      overflow: hidden;
+    }
+
+    body {
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     .app {
       display: flex;
       height: 100vh;
-      width: 100vw;
+      position: relative;
     }
 
     .sidebar {
       width: 400px;
       min-width: 400px;
       background: var(--sidebar-bg);
+      backdrop-filter: blur(20px);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      height: 100%;
-      z-index: 10;
+      z-index: 100;
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
     }
 
     .sidebar-header {
-      padding: 20px;
+      padding: 32px 24px 24px;
       border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .tour-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0;
+      background: linear-gradient(to right, #fff, #9ba3af);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .sidebar-content {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 24px;
     }
 
-    .section {
-      margin-bottom: 24px;
-    }
-
-    .section-title {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--accent);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .section-title::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    input,
-    textarea {
-      width: 100%;
-      padding: 10px;
-      background: rgba(15, 23, 42, 0.5);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: #fff;
-      font-size: 0.85rem;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    button {
-      padding: 10px 16px;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      width: 100%;
-    }
-
-    .btn-secondary {
-      background: var(--card-bg);
-      color: #fff;
-    }
-
-    .btn-danger {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--danger);
-    }
-
-    .day-row {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 12px;
+    .timeline {
       position: relative;
-      cursor: grab;
-      transition: transform 0.2s, box-shadow 0.2s;
+      padding-left: 20px;
+      border-left: 2px solid var(--border);
     }
 
-    .day-row:active {
-      cursor: grabbing;
-    }
-
-    .day-row.dragging {
-      opacity: 0.4;
-      transform: scale(0.98);
-    }
-
-    .day-row.over {
-      border-top: 2px solid var(--accent);
-    }
-
-    .day-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 0.6fr 1.2fr 1fr;
-      gap: 8px;
-    }
-
-    .full-width {
-      grid-column: 1 / -1;
-    }
-
-    .coord-status-bar {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      display: flex;
-      justify-content: space-between;
-      margin-top: 8px;
-      cursor: pointer;
-    }
-
-    .tour-item {
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.03);
+    .day-card {
+      background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      margin-bottom: 6px;
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 20px;
       cursor: pointer;
+      transition: 0.25s ease;
     }
 
-    .tour-item.active {
+    .day-card:hover {
+      background: var(--card-hover);
+      transform: translateY(-2px);
+    }
+
+    .day-card.active {
       border-color: var(--accent);
-      background: rgba(59, 130, 246, 0.1);
-    }
-
-    .tour-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 8px;
-    }
-
-    .view-btn {
-      padding: 4px 8px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 0.7rem;
-      border-radius: 4px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      background: rgba(59, 130, 246, 0.12);
+      box-shadow: 0 0 0 1px rgba(96,165,250,0.25);
     }
 
     .main {
@@ -232,89 +129,586 @@
       height: 100%;
     }
 
-    #toast-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 9999;
+    .overlay-info {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 340px;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.64);
+      backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-lg);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .overlay-info.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--glass);
+      border-radius: 50px;
+      z-index: 1000;
+      border: 1px solid var(--border);
+    }
+
+    .city-photo {
+      width: 100%;
+      height: 180px;
+      border-radius: var(--radius-md);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .city-photo div {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .photo-back {
+      opacity: 0;
+    }
+
+    .photo-front {
+      opacity: 1;
+    }
+
+    .travel-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .weather-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .theme-palette {
+      position: absolute;
+      top: 80px;
+      right: 24px;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      z-index: 1000;
     }
 
-    .toast {
-      padding: 12px 16px;
-      background: #1e293b;
+    .theme-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
       color: #fff;
-      border-radius: 6px;
-      border-left: 4px solid var(--accent);
-      font-size: 0.85rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: 0.2s;
     }
 
-    .db-status {
-      font-size: 0.65rem;
-      padding: 4px 8px;
-      border-radius: 4px;
-      margin-top: 4px;
-      display: inline-block;
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--success);
+    .theme-btn:hover {
+      background: var(--accent);
+    }
+
+    .search-container {
+      margin-bottom: 20px;
+      width: 100%;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: #fff;
+      outline: none;
+      font-size: 0.95rem;
+    }
+
+    .search-input::placeholder {
+      color: #7c8aa5;
+    }
+
+    .search-input:focus {
+      border-color: rgba(96, 165, 250, 0.35);
+      box-shadow: 0 0 0 4px rgba(96,165,250,0.08);
+    }
+
+    .marker-dot {
+      width: 12px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.3);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+    }
+
+    .marker-dot.selected {
+      background: #fff;
+      border-color: var(--accent);
+      transform: scale(1.5);
+      box-shadow: 0 0 20px var(--accent);
+    }
+
+    .airplane-marker {
+      font-size: 32px;
+      text-shadow: 0 0 15px rgba(59, 130, 246, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 0 8px #3b82f6);
+      pointer-events: none;
+      z-index: 5000 !important;
+      transition: transform 0.5s ease;
+      animation: pulse 2s infinite;
+    }
+
+    .loader {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 var(--accent-glow);
+      }
+      70% {
+        box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
+
+    .fun-fact-card {
+      position: absolute;
+      bottom: 100px;
+      right: 24px;
+      width: 300px;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-md);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateX(50px);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .fun-fact-card.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* seçim ekranı */
+    #selectionScreen {
+      position: relative;
+      min-height: 100vh;
+      background: transparent;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+    }
+
+    #worldMapSection {
+      display: none;
+      min-height: 44vh;
+      height: 44vh;
+      background: linear-gradient(135deg, #10203a 0%, #091120 100%);
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #weeklyMap {
+      width: 100%;
+      height: 100%;
+    }
+
+    .weekly-map-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(3,7,18,0.18), rgba(3,7,18,0.05) 35%, rgba(3,7,18,0.42));
+      z-index: 500;
+    }
+
+    .weekly-map-title {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 700;
+      text-align: center;
+      width: calc(100% - 40px);
+      pointer-events: none;
+    }
+
+    .weekly-map-title h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 0;
+      background: linear-gradient(to right, #60a5fa, #fff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .weekly-map-title p {
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-size: 0.92rem;
+    }
+
+    .weekly-marker {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #60a5fa;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 0 rgba(96,165,250,.7);
+      animation: weeklyPulse 1.8s infinite;
+    }
+
+    @keyframes weeklyPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(96,165,250,.7);
+        opacity: 1;
+      }
+      70% {
+        transform: scale(1.18);
+        box-shadow: 0 0 0 18px rgba(96,165,250,0);
+        opacity: .7;
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(96,165,250,0);
+        opacity: 1;
+      }
+    }
+
+    #tourSelectionContent {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 48px;
+      overflow: visible;
+    }
+
+    .selection-header {
+      max-width: 1200px;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 26px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: linear-gradient(180deg, rgba(3,7,18,0.96) 0%, rgba(3,7,18,0.90) 75%, rgba(3,7,18,0) 100%);
+      backdrop-filter: blur(8px);
+    }
+
+    .selection-header h1 {
+      font-size: 3rem;
+      margin: 0 0 12px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .selection-header p {
+      color: var(--text-muted);
+      margin: 0 0 30px;
+      font-size: 1rem;
+    }
+
+    #tourGrid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+      padding: 10px 6px 40px;
+      overflow: visible;
+    }
+
+    .tour-section-title {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 30px;
+      margin-bottom: 6px;
+    }
+
+    .tour-section-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      box-shadow: inset 0 0 20px rgba(255,255,255,0.18), 0 0 24px rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    .tour-section-dot.red {
+      background: radial-gradient(circle at 30% 30%, #ff8a8a, #ff3355 70%);
+    }
+
+    .tour-section-dot.green {
+      background: radial-gradient(circle at 30% 30%, #9cffc5, #00d084 70%);
+    }
+
+    .tour-section-dot.gray {
+      background: radial-gradient(circle at 30% 30%, #d7dde8, #6b7280 70%);
+    }
+
+    .tour-section-title h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .tour-section-title .count {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-left: 4px;
+    }
+
+    .tour-card {
+      background: linear-gradient(180deg, rgba(13, 23, 44, 0.92), rgba(11, 18, 32, 0.92));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 22px;
+      padding: 20px;
+      text-align: left;
+      min-height: 154px;
+      transition: 0.25s ease;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+    }
+
+    .tour-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(96,165,250,0.20);
+      background: linear-gradient(180deg, rgba(16, 28, 52, 0.96), rgba(11, 18, 32, 0.96));
+    }
+
+    .tour-card-title {
+      font-size: 1rem;
+      line-height: 1.35;
+      font-weight: 800;
+      margin-bottom: 14px;
+      color: #fff;
+    }
+
+    .tour-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #b4c0d3;
+      font-size: 0.78rem;
+      margin-bottom: 8px;
+    }
+
+    .tour-card-meta:last-child {
+      margin-bottom: 0;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--text-muted);
+      border: 1px dashed rgba(255,255,255,0.08);
+      border-radius: 22px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(96, 165, 250, 0.72);
+      border-radius: 999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(96, 165, 250, 0.92);
+    }
+
+    @media (max-width: 1180px) {
+      #tourGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      #worldMapSection {
+        height: 36vh;
+        min-height: 260px;
+      }
+
+      .selection-header h1 {
+        font-size: 2.1rem;
+      }
+
+      #tourGrid {
+        grid-template-columns: 1fr;
+      }
+
+      #tourSelectionContent {
+        padding: 34px 16px 36px;
+      }
     }
   </style>
 </head>
 
 <body>
-  <div class="app">
-    <aside class="sidebar">
+  <div id="selectionScreen">
+    <div class="loader" id="mainLoader" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999;"></div>
+
+    <div id="worldMapSection">
+      <div id="weeklyMap"></div>
+      <div class="weekly-map-overlay"></div>
+      <div class="weekly-map-title">
+        <h2>🌍 Bu Hafta Nerelerdeyim?</h2>
+        <p id="activeCountriesText">Yükleniyor...</p>
+      </div>
+    </div>
+
+    <div id="tourSelectionContent">
+      <div class="selection-header">
+        <h1>Planlanmış Turlar</h1>
+        <p>Takip etmek istediğiniz turu seçin</p>
+        <div class="search-container">
+          <input type="text" id="tourSearch" class="search-input" placeholder="Tur adı veya şehir ara...">
+        </div>
+      </div>
+      <div id="tourGrid"></div>
+    </div>
+  </div>
+
+  <div class="app" id="mainApp" style="display:none;">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h1 style="margin:0; font-size:1.1rem;">Admin Paneli</h1>
-        <div class="db-status">SQL Server Aktif</div>
+        <h1 class="tour-name" id="tourTitle">Tur Adı</h1>
+        <div id="tourDateRange" style="font-size:0.85rem; color:var(--text-muted); margin-top:6px;">...</div>
       </div>
       <div class="sidebar-content">
-        <div class="section">
-          <div class="section-title">Akıllı İçe Aktar (Smart Parser)</div>
-          <div class="form-group">
-            <label>Tur Programını Buraya Yapıştırın</label>
-            <textarea id="smartInput" placeholder="Örn: 1.GÜN / İSTANBUL - SEUL..." rows="5"
-              style="background:rgba(96, 165, 250, 0.05); border:1px dashed var(--accent);"></textarea>
-          </div>
-          <button class="btn-secondary" id="smartParseBtn" style="width:100%; font-size:0.75rem;">Programı Analiz Et ve
-            Doldur ✨</button>
-        </div>
-        <div class="section">
-          <div class="section-title">Genel Bilgiler</div>
-          <div class="form-group"><label>Tur Adı</label><input type="text" id="tourName"></div>
-          <div class="day-grid">
-            <div class="form-group"><label>Başlangıç</label><input type="date" id="startDate"></div>
-            <div class="form-group"><label>Bitiş</label><input type="date" id="endDate"></div>
-          </div>
-          <button class="btn-primary" id="generateDays">Günleri Oluştur</button>
-        </div>
-        <div id="daysWrapper" style="display:none;">
-          <div class="section">
-            <div class="section-title">Program Akışı</div>
-            <div id="daysContainer"></div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">İşlemler</div>
-          <div class="btn-group">
-            <button class="btn-primary" id="saveTour" style="flex:2;">Kaydet</button>
-            <button class="btn-secondary" id="loadDemo">Demo</button>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">Kayıtlı Turlar</div>
-          <div id="toursList"></div>
-          <button class="btn-danger" id="deleteTour" style="width:100%; margin-top:10px;">Turu Sil</button>
-        </div>
+        <div class="timeline" id="timeline"></div>
       </div>
     </aside>
+
     <main class="main">
       <div id="map"></div>
+
+      <div class="theme-palette">
+        <div class="theme-btn" onclick="toggleMap('dark')" title="Karanlık Mod">🌑</div>
+        <div class="theme-btn" onclick="toggleMap('sat')" title="Uydu Görünümü">📡</div>
+        <div class="theme-btn" onclick="toggleMap('light')" title="Sokak Görünümü">🗺️</div>
+      </div>
+
+      <div class="overlay-info" id="overlayInfo">
+        <div id="ovPhoto" class="city-photo">
+          <div id="photoBack" class="photo-back"></div>
+          <div id="photoFront" class="photo-front"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+          <div id="ovDayNum" style="color:var(--accent); font-weight:700; font-size:0.8rem;"></div>
+          <div id="ovWeather" class="weather-badge">☀️ 22°C</div>
+        </div>
+        <h2 id="ovTitle" style="margin:4px 0 12px; font-size:1.6rem; line-height:1.2;"></h2>
+        <div id="ovDesc" style="font-size:0.95rem; line-height:1.6; color:var(--text-muted);"></div>
+
+        <div class="travel-stats">
+          <div>
+            <div class="stat-label">Bu Etap</div>
+            <div class="stat-value" id="ovDist">- km</div>
+          </div>
+          <div>
+            <div class="stat-label">Toplam Yol</div>
+            <div class="stat-value" id="ovTotalDist">- km</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <button id="btnPrev" style="background:none; border:none; color:#fff; cursor:pointer;">◀</button>
+        <button id="btnAutoplay" style="background:var(--accent); border:none; color:#fff; padding:8px 16px; border-radius:30px; cursor:pointer; font-weight:600; font-size:1.1rem;">✈️</button>
+        <button id="btnNext" style="background:none; border:none; color:#fff; cursor:pointer;">▶</button>
+      </div>
+
+      <div class="fun-fact-card" id="funFactCard">
+        <div style="font-size:0.7rem; color:var(--accent); text-transform:uppercase; font-weight:700; letter-spacing:1px; margin-bottom:8px;">Biliyor muydunuz?</div>
+        <div id="funFactText" style="font-size:0.9rem; line-height:1.5;"></div>
+      </div>
     </main>
-    <div id="toast-container"></div>
   </div>
 
   <script>
@@ -322,450 +716,436 @@
       const API_URL = "https://ejdervip.com/api/tours";
 
       let map = null, markers = [], polyline = null;
-      let currentTourId = null, currentDays = [];
-      let activeMapIdx = -1;
-      let geocodeTimers = {};
+      let weeklyMap = null, weeklyMarkers = [], weeklyPolyline = null;
+      let tour = null, selectedIdx = 0, autoplayInterval = null;
 
-      const CITY_METADATA = {
-        'seul': { country: 'Güney Kore', photo: 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=1200' },
-        'tokyo': { country: 'Japonya', photo: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200' },
-        'kyoto': { country: 'Japonya', photo: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200' },
-        'osaka': { country: 'Japonya', photo: 'https://images.unsplash.com/photo-1590559899731-3972410bc39e?auto=format&fit=crop&w=1200' },
-        'hiroşima': { country: 'Japonya', photo: 'https://images.unsplash.com/photo-1624206112910-b4f693e506b8?auto=format&fit=crop&w=1200' },
-        'fuji': { country: 'Japonya', photo: 'https://images.unsplash.com/photo-1490985816391-81494c6ef749?auto=format&fit=crop&w=1200' },
-        'istanbul': { country: 'Türkiye', photo: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=1200' },
-        'ankara': { country: 'Türkiye', photo: 'https://images.unsplash.com/photo-1558233777-628469e5f569?auto=format&fit=crop&w=1200' },
-        'singapur': { country: 'Singapur', photo: 'https://images.unsplash.com/photo-1525625239514-75b4252ae14d?auto=format&fit=crop&w=1200' },
-        'paris': { country: 'Fransa', photo: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200' },
-        'roma': { country: 'İtalya', photo: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1200' },
-        'berlin': { country: 'Almanya', photo: 'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=1200' },
-        'londra': { country: 'İngiltere', photo: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1200' },
-        'dubai': { country: 'BAE', photo: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200' }
+      const FUN_FACTS = {
+        'Seul': 'Seul, dünyanın en hızlı internetine ve tek bir şehirdeki en büyük metro hattına sahip şehirlerinden biridir.',
+        'Tokyo': 'Dünyanın en kalabalık metropolü olan Tokyo’da, her gün milyonlarca kişi metro sistemini kullanır.',
+        'Kyoto': 'Kyoto, Japonya’nın en güçlü tarihî dokusunu taşıyan şehirlerinden biridir.',
+        'Hiroşima': 'Hiroşima bugün dünya barışının en önemli sembollerinden biridir.',
+        'Fuji': 'Fuji Dağı, Japonya’nın en ikonik doğal simgelerinden biridir.',
+        'İstanbul': 'İstanbul, dünyada iki kıta üzerine kurulu en önemli metropollerden biridir.',
+        'Singapur': 'Singapur, dünyanın en yeşil şehirlerinden biridir.'
       };
 
-      const SMART_ICONS = {
-        'Otel': '🏨', 'Konaklama': '🏨', 'Hotel': '🏨',
-        'Uçuş': '✈️', 'Havalimanı': '✈️', 'Uçak': '✈️',
-        'Kahvaltı': '🍳', 'Yemek': '🍽️', 'Restoran': '🍽️',
-        'Tur': '🏛️', 'Müze': '🏛️', 'Tapınak': '⛩️',
-        'Tren': '🚄', 'Shinkansen': '🚄', 'Transfer': '🚐'
-      };
-
-      function getSmartIcon(text) {
-        if (!text) return '📍';
-        const lower = text.toLowerCase();
-        for (let key in SMART_ICONS) {
-          if (lower.includes(key.toLowerCase())) return SMART_ICONS[key];
+      function parseDate(dateStr) {
+        if (!dateStr) return null;
+        if (typeof dateStr === 'string' && dateStr.includes('.')) {
+          const [day, month, year] = dateStr.split('.');
+          return new Date(year, month - 1, day);
         }
-        return '📍';
+        return new Date(dateStr);
       }
 
-      async function geocodeLocation(city, country, idx) {
-        city = city ? city.trim() : "";
-        country = country ? country.trim() : "";
-        if (!city && !country) {
-          currentDays[idx].lat = 20; currentDays[idx].lng = 0;
-          updateDayUI(idx); updateMap(); return;
+      function formatDate(date) {
+        return date.toLocaleDateString('tr-TR');
+      }
+
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c);
+      }
+
+      function getCurvedPoints(p1, p2, segments = 50) {
+        const lat1 = p1[0], lng1 = p1[1];
+        const lat2 = p2[0], lng2 = p2[1];
+        const offset = 0.1 * Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lng2 - lng1, 2));
+        const midLat = (lat1 + lat2) / 2 + offset;
+        const midLng = (lng1 + lng2) / 2 + offset;
+
+        const points = [];
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const lat = (1 - t) * (1 - t) * lat1 + 2 * (1 - t) * t * midLat + t * t * lat2;
+          const lng = (1 - t) * (1 - t) * lng1 + 2 * (1 - t) * t * midLng + t * t * lng2;
+          points.push([lat, lng]);
+        }
+        return points;
+      }
+
+      function updateWeather() {
+        const icons = ['☀️', '⛅', '☁️', '🌧️'];
+        const temp = Math.floor(Math.random() * 11) + 18;
+        const icon = icons[Math.floor(Math.random() * icons.length)];
+        document.getElementById('ovWeather').innerHTML = `${icon} ${temp}°C`;
+      }
+
+      function showFunFact(city) {
+        const card = document.getElementById('funFactCard');
+        const text = document.getElementById('funFactText');
+        text.textContent = FUN_FACTS[city] || `${city}, tur programındaki önemli destinasyonlardan biridir.`;
+        card.classList.add('visible');
+        setTimeout(() => card.classList.remove('visible'), 5000);
+      }
+
+      function initWeeklyMap() {
+        if (weeklyMap) {
+          weeklyMap.remove();
         }
 
-        const tryGeocode = async (q) => {
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
-              headers: { 'Accept-Language': 'tr', 'User-Agent': 'TurTakipApp/1.0' }
-            });
-            const data = await res.json();
-            return (data && data.length > 0) ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
-          } catch (e) { return null; }
-        };
+        weeklyMap = L.map('weeklyMap', {
+          zoomControl: false,
+          attributionControl: false
+        }).setView([25, 20], 2);
 
-        // Katmanlı Arama Motoru (Layered Search Engine)
-        let result = null;
-        if (city && country) result = await tryGeocode(`${city}, ${country}`);
-        if (!result && city) result = await tryGeocode(city);
-        if (!result && country) result = await tryGeocode(country);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(weeklyMap);
+      }
 
-        if (result) {
-          currentDays[idx].lat = parseFloat(result.lat.toFixed(5));
-          currentDays[idx].lng = parseFloat(result.lng.toFixed(5));
-          showToast(`📍 ${city || country} konumu doğrulandı`);
+      function displayWeeklyLocations(days) {
+        if (!weeklyMap) initWeeklyMap();
+
+        weeklyMarkers.forEach(m => weeklyMap.removeLayer(m));
+        weeklyMarkers = [];
+
+        if (weeklyPolyline) {
+          weeklyMap.removeLayer(weeklyPolyline);
+          weeklyPolyline = null;
+        }
+
+        const activeText = document.getElementById('activeCountriesText');
+        const points = [];
+        const countries = new Set();
+
+        days.forEach((day, index) => {
+          if (!isFinite(day.lat) || !isFinite(day.lng)) return;
+
+          if (day.country) countries.add(day.country);
+          points.push([day.lat, day.lng]);
+
+          const icon = L.divIcon({
+            className: '',
+            html: '<div class="weekly-marker"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+
+          const marker = L.marker([day.lat, day.lng], { icon })
+            .addTo(weeklyMap)
+            .bindTooltip(`${day.city || day.country || 'Durak'}`, { permanent: false });
+
+          weeklyMarkers.push(marker);
+        });
+
+        if (countries.size) {
+          activeText.textContent = `${Array.from(countries).join(', ')} · ${countries.size} ülke`;
         } else {
-          // Konum Sigortası (Location Insurance) - Boş bırakmıyoruz
-          currentDays[idx].lat = 20;
-          currentDays[idx].lng = 0;
-          showToast(`⚠ ${city || 'Konum'} bulunamadı, varsayılan atandı`);
+          activeText.textContent = 'Bu hafta aktif tur bulunmuyor';
         }
-        updateDayUI(idx);
-        updateMap();
-      }
 
-      async function fetchCityPhoto(city, country, idx) {
-        if (currentDays[idx].photoUrl) return; // Zaten varsa (veritabanından vb.) dokunma
+        if (points.length >= 2) {
+          weeklyPolyline = L.polyline(points, {
+            color: '#60a5fa',
+            weight: 2.5,
+            opacity: 0.85,
+            dashArray: '8, 8'
+          }).addTo(weeklyMap);
 
-        try {
-          // Unsplash Source API - Şehir ve ülke bazlı arama (Keyless demo kullanımı)
-          const query = encodeURIComponent(`${city} ${country || ''} tourism landscape`);
-          const imageUrl = `https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1200&q=80&sig=${Math.random()}`; // Fallback model
-
-          // Gerçekte API key gerekir ancak biz akıllı tahmin motorumuzla city ismine göre 
-          // Unsplash'in genel fotoğraf havuzundan dinamik eşleşme kuruyoruz.
-          const photoUrl = `https://source.unsplash.com/1200x800/?${query}`;
-
-          // Not: source.unsplash.com kapandığı için güncel public redirect mantığı:
-          const dynamicUrl = `https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80&query=${query}`;
-
-          // Eğer CITY_METADATA'da yoksa burası tetiklenir
-          currentDays[idx].photoUrl = `https://source.unsplash.com/featured/?${city},${country || ''}`;
-          updateDayUI(idx);
-        } catch (e) { console.error("Fotoğraf bulma hatası", e); }
-      }
-
-      window.loadDemoTour = async function () {
-        const demoData = [
-          { day: 1, city: 'Seul', country: 'Güney Kore', hour: '13:30', photo: 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=800&q=80', activity: 'İstanbul Havalimanı buluşma, Singapur aktarmalı Seul uçuşu. Geceleme uçakta.' },
-          { day: 2, city: 'Seul', country: 'Güney Kore', hour: '22:15', photo: 'https://images.unsplash.com/photo-1538669715515-5c37c97a799a?auto=format&fit=crop&w=800&q=80', activity: 'Seul Havalimanı varış, otele transfer. Geceleme Ramada Hotel Seoul.' },
-          { day: 3, city: 'Kuzey Kore Sınırı', country: 'Güney Kore', hour: '09:00', photo: 'https://images.unsplash.com/photo-1541432901012-a7abc350766c?auto=format&fit=crop&w=800&q=80', activity: 'DMZ Bölgesi, Imjingak Barış Köprüsü ve Kore Savaşı Anıtı ziyareti.' },
-          { day: 4, city: 'Seul', country: 'Güney Kore', hour: '10:00', photo: 'https://images.unsplash.com/photo-1541432901012-a7abc350766c?auto=format&fit=crop&w=800&q=80', activity: 'Namsangol Hanok Köyü, Namsan Tepesi ve Gangnam semti ziyareti.' },
-          { day: 5, city: 'Tokyo', country: 'Japonya', hour: '08:15', photo: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80', activity: 'Uçuş ile Tokyo geçiş. Meiji Jingu Tapınağı ve Tokyo Tower ziyareti.' },
-          { day: 6, city: 'Fuji Dağı', country: 'Japonya', hour: '07:30', photo: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80', activity: 'Fuji Dağı 5. İstasyon ziyareti ve Ashi Gölü tekne turu.' },
-          { day: 7, city: 'Kamakura', country: 'Japonya', hour: '09:00', photo: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80', activity: 'Büyük Buda Heykeli ve Hokoku-ji Tapınağı bambu bahçeleri.' },
-          { day: 8, city: 'Tokyo', country: 'Japonya', hour: '10:00', photo: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80', activity: 'Tokyo serbest zaman ve alışveriş.' },
-          { day: 9, city: 'Kobe', country: 'Japonya', hour: '08:00', photo: 'https://images.unsplash.com/photo-1590559899731-3972410bc39e?auto=format&fit=crop&w=800&q=80', activity: 'Hızlı tren (Shinkansen) ile Kobe geçiş, Ikuta Tapınağı ziyareti.' },
-          { day: 10, city: 'Kyoto', country: 'Japonya', hour: '08:00', photo: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80', activity: 'Altın Tapınak (Kinkaku-ji) ve Nara Geyik Parkı ziyareti.' },
-          { day: 11, city: 'Hiroşima', country: 'Japonya', hour: '09:00', photo: 'https://images.unsplash.com/photo-1624206112910-b4f693e506b8?auto=format&fit=crop&w=800&q=80', activity: 'Hiroşima Kalesi ve şehir turu.' },
-          { day: 12, city: 'Kitakyushu', country: 'Japonya', hour: '09:00', photo: 'https://images.unsplash.com/photo-1554797589-7241bb691973?auto=format&fit=crop&w=800&q=80', activity: 'Kokura Kalesi ve Mojiko Retro bölgesi gezisi.' },
-          { day: 13, city: 'Hakata', country: 'Japonya', hour: '09:00', photo: 'https://images.unsplash.com/photo-1554797589-7241bb691973?auto=format&fit=crop&w=800&q=80', activity: 'Dazaifu Tenman-gu Tapınağı ve Kushida-Jinja ziyareti.' },
-          { day: 14, city: 'Singapur', country: 'Singapur', hour: '09:55', photo: 'https://images.unsplash.com/photo-1525625239514-75b4252ae14d?auto=format&fit=crop&w=800&q=80', activity: 'Singapur aktarmalı dönüş yolculuğu.' },
-          { day: 15, city: 'İstanbul', country: 'Türkiye', hour: '07:45', photo: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=800&q=80', activity: 'İstanbul varış ve turun sonu.' }
-        ];
-
-        document.getElementById('tourName').value = "Japonya & Güney Kore Dream Tour";
-        document.getElementById('startDate').value = "2026-06-01";
-        document.getElementById('endDate').value = "2026-06-15";
-
-        currentDays = demoData.map(d => ({
-          dayNumber: d.day,
-          date: `2026-06-${d.day.toString().padStart(2, '0')}`,
-          city: d.city,
-          country: d.country,
-          hour: d.hour,
-          photoUrl: d.photo,
-          activity: d.activity,
-          lat: null, lng: null
-        }));
-
-        renderDays();
-        showToast("Demo tur verileri yüklendi. Konumlar ve fotoğraflar yapay zeka tarafından taranıyor...");
-
-        for (let i = 0; i < currentDays.length; i++) {
-          await geocodeLocation(currentDays[i].city, currentDays[i].country, i);
-          await fetchCityPhoto(currentDays[i].city, currentDays[i].country, i);
-          await new Promise(r => setTimeout(r, 1200)); // Nominatim rate limit
+          weeklyMap.fitBounds(weeklyPolyline.getBounds(), { padding: [30, 30] });
+        } else if (points.length === 1) {
+          weeklyMap.setView(points[0], 5);
+        } else {
+          weeklyMap.setView([25, 20], 2);
         }
       }
 
-      window.parseSmartTour = async function () {
-        const text = document.getElementById('smartInput').value;
-        if (!text.trim()) return showToast("Lütfen metin girin!");
+      window.toggleMap = function (type) {
+        let url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        if (type === 'sat') url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+        if (type === 'light') url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-        showToast("Program analiz ediliyor... 🤖");
+        map.eachLayer(layer => { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
+        L.tileLayer(url, { attribution: '© OpenStreetMap' }).addTo(map);
+      }
 
-        // Başlık Analizi (İlk satırı başlık al)
-        const lines = text.split('\n').filter(l => l.trim() !== '');
-        const titleMatch = lines[0].replace(/-|15Gün|2026/gi, '').trim();
-        document.getElementById('tourName').value = titleMatch || "Yeni Tur";
-
-        // Günleri Ayıklama (GÜN kelimesine göre split)
-        const dayBlocks = text.split(/\d+\.?\s?GÜN/i).slice(1);
-        const parsedDays = [];
-
-        dayBlocks.forEach((block, i) => {
-          const dayLines = block.split('\n').filter(l => l.trim() !== '');
-          if (dayLines.length === 0) return;
-
-          let firstLine = dayLines[0].trim();
-          let activity = dayLines.slice(1).join(' ').trim();
-
-          // Şehir yakalama ( / - – sembollerinden öncesi/sonrası)
-          let city = "";
-          let hour = "";
-
-          // Saati bul (HH:MM formatı)
-          const hourMatch = firstLine.match(/\d{2}:\d{2}/);
-          if (hourMatch) hour = hourMatch[0];
-
-          // Şehri ayıkla (İlk satırda '/' veya '–' varsa en sondaki genellikle hedeftir)
-          const parts = firstLine.split(/\/|-|–/);
-          if (parts.length > 1) {
-            city = parts[parts.length - 1].replace(/\d{2}:\d{2}.*|★.*/g, '').trim();
-          } else {
-            city = firstLine.replace(/\d{2}:\d{2}.*|★.*/g, '').trim();
-          }
-
-          // Ülke ve Fotoğraf tahmini (Veritabanından)
-          let country = "";
-          let photoUrl = "";
-          const citySearch = city.toLowerCase();
-
-          for (let key in CITY_METADATA) {
-            if (citySearch.includes(key) || key.includes(citySearch)) {
-              country = CITY_METADATA[key].country;
-              photoUrl = CITY_METADATA[key].photo;
-              break;
+      async function initApp() {
+        const tourId = new URLSearchParams(window.location.search).get('tourId');
+        if (tourId) {
+          try {
+            const res = await fetch(`${API_URL}/${tourId}`);
+            if (res.ok) {
+              tour = await res.json();
+              startTourView();
+              return;
             }
-          }
-
-          if (!country) {
-            if (citySearch.includes("ist") || citySearch.includes("ank")) country = "Türkiye";
-            else country = "Bilinmeyen Ülke"; // Boş bırakma
-          }
-
-          if (!hour) hour = "09:00"; // Varsayılan saat
-
-          // Tarih Hesaplama
-          let dayDate = "";
-          const baseDate = document.getElementById('startDate').value;
-          if (baseDate) {
-            const d = new Date(baseDate);
-            d.setDate(d.getDate() + i);
-            dayDate = d.toISOString().split('T')[0];
-          }
-
-          parsedDays.push({
-            dayNumber: i + 1,
-            date: dayDate,
-            city: city || "Belirtilmedi",
-            country: country,
-            hour: hour,
-            photoUrl: photoUrl || "",
-            activity: activity.substring(0, 500)
-          });
-        });
-
-        if (parsedDays.length > 0) {
-          currentDays = parsedDays;
-          document.getElementById('daysWrapper').style.display = 'block';
-          renderDays();
-          showToast(`${parsedDays.length} gün başarıyla ayrıştırıldı! Konumlar aranıyor...`);
-
-          for (let i = 0; i < currentDays.length; i++) {
-            await geocodeLocation(currentDays[i].city, currentDays[i].country, i);
-            await fetchCityPhoto(currentDays[i].city, currentDays[i].country, i);
-            if (currentDays.length > 5) await new Promise(r => setTimeout(r, 1000));
+          } catch (e) {
+            console.error("Veri hatası", e);
           }
         }
+        loadAllTours();
       }
 
-      const showToast = (m) => {
-        const c = document.getElementById('toast-container');
-        const t = document.createElement('div'); t.className = 'toast'; t.innerText = m;
-        c.appendChild(t); setTimeout(() => t.remove(), 3000);
-      };
-
-      function initMap() {
-        if (map) return;
-        map = L.map('map', { zoomControl: false }).setView([39, 35], 5);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-        map.on('click', (e) => {
-          if (activeMapIdx < 0) return;
-          const lat = parseFloat(e.latlng.lat.toFixed(5)), lng = parseFloat(e.latlng.lng.toFixed(5));
-          currentDays[activeMapIdx].lat = lat; currentDays[activeMapIdx].lng = lng;
-          updateDayUI(activeMapIdx); updateMap(); activeMapIdx = -1;
-        });
-      }
-
-      function updateDayUI(idx) {
-        const row = document.querySelector(`.day-row[data-index="${idx}"]`);
-        if (!row) return;
-        const status = row.querySelector('.coord-status'), day = currentDays[idx];
-        if (day.lat != null) { status.innerText = '✓ Tamam'; status.style.color = 'var(--success)'; }
-      }
-
-      let dragSrcIdx = null;
-
-      function renderDays() {
-        const container = document.getElementById('daysContainer');
-        container.innerHTML = '';
-        currentDays.forEach((day, idx) => {
-          const div = document.createElement('div');
-          div.className = 'day-row';
-          div.dataset.index = idx;
-          div.draggable = true;
-
-          const icon = getSmartIcon(day.activity || day.city);
-          div.innerHTML = `
-            <div class="day-label" style="font-weight:700; margin-bottom:12px; display:flex; gap:8px; align-items:center;">
-              <span class="smart-icon">${icon}</span>
-              Gün ${day.dayNumber} - ${day.date}
-            </div>
-            <div class="day-grid">
-              <input type="text" placeholder="Şehir" data-field="city" value="${day.city || ''}">
-              <input type="text" placeholder="Ülke" data-field="country" value="${day.country || ''}">
-              <input type="text" placeholder="Saat" data-field="hour" value="${day.hour || ''}">
-              <input type="text" placeholder="Fotoğraf URL" data-field="photoUrl" value="${day.photoUrl || ''}">
-              <div class="coord-status-bar">
-                <span class="coord-status">${day.lat ? '✓ Tamam' : '⚠ Konum Yok'}</span>
-                <span style="color:var(--accent)">Seç ❯</span>
-              </div>
-              <textarea class="full-width" placeholder="Aktivite" data-field="activity" rows="2">${day.activity || ''}</textarea>
-            </div>`;
-
-          container.appendChild(div);
-
-          // Drag & Drop Events
-          div.ondragstart = (e) => { dragSrcIdx = idx; div.classList.add('dragging'); };
-          div.ondragend = () => div.classList.remove('dragging');
-          div.ondragover = (e) => { e.preventDefault(); div.classList.add('over'); };
-          div.ondragleave = () => div.classList.remove('over');
-          div.ondrop = (e) => {
-            e.preventDefault();
-            div.classList.remove('over');
-            if (dragSrcIdx !== idx) {
-              const item = currentDays.splice(dragSrcIdx, 1)[0];
-              currentDays.splice(idx, 0, item);
-              // Gün numaralarını yeniden ata
-              currentDays.forEach((d, i) => d.dayNumber = i + 1);
-              renderDays();
-              updateMap();
-            }
-          };
-
-          div.querySelector('.coord-status-bar').onclick = () => { activeMapIdx = idx; };
-          div.querySelectorAll('input, textarea').forEach(el => {
-            el.oninput = (e) => {
-              currentDays[idx][el.dataset.field] = e.target.value;
-              if (el.dataset.field === 'activity') {
-                div.querySelector('.smart-icon').innerText = getSmartIcon(e.target.value);
-              }
-              if (el.dataset.field === 'city' || el.dataset.field === 'country') {
-                clearTimeout(geocodeTimers[idx]);
-                geocodeTimers[idx] = setTimeout(() => {
-                  geocodeLocation(currentDays[idx].city, currentDays[idx].country, idx);
-                }, 1000);
-              }
-            };
-          });
-        });
-      }
-
-      function updateMap() {
-        initMap(); markers.forEach(m => map.removeLayer(m)); markers = [];
-        if (polyline) map.removeLayer(polyline);
-        const pts = [];
-        currentDays.forEach(d => {
-          if (d.lat != null) {
-            const p = [d.lat, d.lng]; pts.push(p);
-            const m = L.marker(p).addTo(map); markers.push(m);
-          }
-        });
-        if (pts.length >= 2) {
-          polyline = L.polyline(pts, { color: '#3b82f6', weight: 3, dashArray: '5, 10' }).addTo(map);
-          map.fitBounds(polyline.getBounds());
-        }
-      }
-
-      document.getElementById('smartParseBtn').onclick = window.parseSmartTour;
-      document.getElementById('generateDays').onclick = () => {
-        const name = document.getElementById('tourName').value, s = document.getElementById('startDate').value, e = document.getElementById('endDate').value;
-        if (!name || !s || !e) return;
-        let start = new Date(s + 'T12:00:00'), end = new Date(e + 'T12:00:00');
-        currentDays = []; currentTourId = null; let count = 1;
-        while (start <= end) {
-          currentDays.push({ tourId: '', dayNumber: count++, date: start.toISOString().split('T')[0], city: '', activity: '', lat: null, lng: null });
-          start.setDate(start.getDate() + 1);
-        }
-        document.getElementById('daysWrapper').style.display = 'block'; renderDays(); updateMap();
-      };
-
-      document.getElementById('saveTour').onclick = async () => {
-        const name = document.getElementById('tourName').value;
-        if (!name || !currentDays.length) return showToast('Eksik Bilgi!');
-
-        const tourId = currentTourId || 'tour_' + Date.now();
-        const tour = {
-          id: tourId,
-          name,
-          startDate: document.getElementById('startDate').value,
-          endDate: document.getElementById('endDate').value,
-          days: currentDays.map(d => ({ ...d, tourId }))
-        };
-
-        try {
-          const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tour)
-          });
-          if (res.ok) {
-            showToast('Veritabanına başarıyla kaydedildi! ✓');
-            renderToursList();
-          } else {
-            showToast('Kayıt hatası!');
-          }
-        } catch (e) {
-          showToast('Sunucuya bağlanılamadı!');
-        }
-      };
-
-      async function renderToursList() {
-        const c = document.getElementById('toursList');
+      async function loadAllTours(query = '') {
         try {
           const res = await fetch(API_URL);
           const tours = await res.json();
-          c.innerHTML = '';
-          tours.forEach(t => {
-            const div = document.createElement('div');
-            div.innerHTML = `
-              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                  <strong>${t.name}</strong><br>
-                  <small style="color:var(--text-muted)">${t.days.length} Gün</small>
-                </div>
-                <a href="passenger.html?tourId=${t.id}" target="_blank" class="view-btn">👁️ Gözat</a>
-              </div>`;
-            div.onclick = (e) => {
-              if (e.target.classList.contains('view-btn')) return; // Butona tıklanırsa seçme
-              currentTourId = t.id;
-              document.getElementById('tourName').value = t.name;
-              document.getElementById('startDate').value = t.startDate || '';
-              document.getElementById('endDate').value = t.endDate || '';
-              currentDays = JSON.parse(JSON.stringify(t.days));
-              document.getElementById('daysWrapper').style.display = 'block';
-              renderDays(); updateMap();
-              document.querySelectorAll('.tour-item').forEach(el => el.classList.remove('active'));
-              div.classList.add('active');
-            };
-            c.appendChild(div);
-          });
+          showSelection(tours, query);
         } catch (e) {
-          c.innerHTML = '<div style="font-size:0.8rem; color:var(--danger)">Veribağlantısı kurulamadı.</div>';
+          console.error("Bağlantı hatası");
         }
       }
 
-      document.getElementById('loadDemo').onclick = () => {
-        document.getElementById('tourName').value = "Örnek SQL Turu";
-        document.getElementById('startDate').value = "2026-06-01";
-        document.getElementById('endDate').value = "2026-06-05";
-        document.getElementById('generateDays').click();
-        showToast('Demo verileri hazır.');
-      };
+      function showSelection(tours, filter = '') {
+        const grid = document.getElementById('tourGrid');
+        const content = document.getElementById('tourSelectionContent');
+        const worldMapSection = document.getElementById('worldMapSection');
+        const mainLoader = document.getElementById('mainLoader');
 
-      document.getElementById('deleteTour').onclick = async () => {
-        if (!currentTourId || !confirm('Bu turu veritabanından silmek istediğinize emin misiniz?')) return;
-        try {
-          const res = await fetch(`${API_URL}/${currentTourId}`, { method: 'DELETE' });
-          if (res.ok) {
-            showToast('Tur silindi.');
-            currentTourId = null; currentDays = [];
-            document.getElementById('tourName').value = '';
-            document.getElementById('daysWrapper').style.display = 'none';
-            renderToursList(); updateMap();
+        mainLoader.style.display = 'none';
+        content.style.display = 'flex';
+        worldMapSection.style.display = 'block';
+        grid.innerHTML = '';
+
+        const query = filter.toLowerCase().trim();
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const weekStart = new Date(now);
+        const dayOfWeek = weekStart.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        weekStart.setDate(weekStart.getDate() + mondayOffset);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        const pastTours = [];
+        const currentTours = [];
+        const futureTours = [];
+        const weeklyDays = [];
+
+        tours.forEach(t => {
+          if (!t.days || t.days.length === 0) return;
+          if (!t.name || !t.name.toLowerCase().includes(query)) return;
+
+          const firstDay = t.days[0];
+          const lastDay = t.days[t.days.length - 1];
+          const startDate = parseDate(firstDay.date);
+          const endDate = parseDate(lastDay.date);
+
+          if (!startDate || !endDate) return;
+
+          const normalizedDays = t.days.map(day => ({
+            ...day,
+            lat: Number(day.lat),
+            lng: Number(day.lng)
+          }));
+
+          const tourData = {
+            ...t,
+            days: normalizedDays,
+            startDate,
+            endDate,
+            dateText: `${formatDate(startDate)} - ${formatDate(endDate)}`
+          };
+
+          normalizedDays.forEach(day => {
+            const dayDate = parseDate(day.date);
+            if (dayDate && dayDate >= weekStart && dayDate <= weekEnd) {
+              weeklyDays.push(day);
+            }
+          });
+
+          if (endDate < now) {
+            pastTours.push(tourData);
+          } else if (startDate <= now && endDate >= now) {
+            currentTours.push(tourData);
+          } else {
+            futureTours.push(tourData);
           }
-        } catch (e) { showToast('Silme hatası!'); }
-      };
+        });
 
-      initMap(); renderToursList();
+        pastTours.sort((a, b) => b.startDate - a.startDate);
+        currentTours.sort((a, b) => a.startDate - b.startDate);
+        futureTours.sort((a, b) => a.startDate - b.startDate);
+
+        initWeeklyMap();
+        displayWeeklyLocations(weeklyDays);
+
+        const createSection = (title, tours, dotClass, color) => {
+          if (!tours.length) return;
+
+          const section = document.createElement('div');
+          section.className = 'tour-section-title';
+          section.innerHTML = `
+            <div class="tour-section-dot ${dotClass}"></div>
+            <h2 style="color:${color}">${title}</h2>
+            <span class="count">(${tours.length})</span>
+          `;
+          grid.appendChild(section);
+
+          tours.forEach(t => {
+            const card = document.createElement('div');
+            card.className = 'tour-card';
+            card.innerHTML = `
+              <div class="tour-card-title">${t.name}</div>
+              <div class="tour-card-meta">
+                <span>🗓️</span>
+                <span>${t.dateText}</span>
+              </div>
+              <div class="tour-card-meta">
+                <span>⏱️</span>
+                <span>${t.days.length} Gün</span>
+              </div>
+            `;
+            card.onclick = () => window.location.search = `?tourId=${t.id}`;
+            grid.appendChild(card);
+          });
+        };
+
+        createSection('Devam Eden Turlar', currentTours, 'red', '#ff4d4f');
+        createSection('Gelecek Turlar', futureTours, 'green', '#00d084');
+        createSection('Geçmiş Turlar', pastTours, 'gray', '#cbd5e1');
+
+        if (pastTours.length === 0 && currentTours.length === 0 && futureTours.length === 0) {
+          grid.innerHTML = '<div class="empty-state">Aramanıza uygun tur bulunamadı</div>';
+        }
+      }
+
+      function initMap() {
+        if (map) return;
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([20, 0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+      }
+
+      function renderTimeline() {
+        const c = document.getElementById('timeline');
+        c.innerHTML = '';
+        tour.days.forEach((day, idx) => {
+          const card = document.createElement('div');
+          card.className = `day-card ${idx === selectedIdx ? 'active' : ''}`;
+          card.innerHTML = `
+            <div style="font-size:0.72rem; color:var(--accent); font-weight:700; margin-bottom:6px;">${day.date || `Gün ${idx + 1}`}</div>
+            <div style="font-size:1rem; font-weight:700; margin-bottom:8px;">${day.city || day.title || 'Durak'}</div>
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.4;">${day.activity || day.description || ''}</div>
+          `;
+          card.onclick = () => selectDay(idx);
+          c.appendChild(card);
+        });
+      }
+
+      function renderSelectedOnMap() {
+        markers.forEach(m => m && map.removeLayer(m));
+        markers = [];
+        if (polyline) {
+          map.removeLayer(polyline);
+          polyline = null;
+        }
+
+        const pts = tour.days.filter(d => isFinite(d.lat) && isFinite(d.lng)).map(d => [d.lat, d.lng]);
+        if (pts.length >= 2) {
+          polyline = L.polyline(pts, { color: '#3b82f6', weight: 3, dashArray: '5, 10' }).addTo(map);
+        }
+
+        tour.days.forEach((day, idx) => {
+          if (!isFinite(day.lat) || !isFinite(day.lng)) return;
+
+          const dotIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="marker-dot ${idx === selectedIdx ? 'selected' : ''}"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          });
+
+          markers[idx] = L.marker([day.lat, day.lng], { icon: dotIcon }).addTo(map).on('click', () => selectDay(idx));
+        });
+
+        const selected = tour.days[selectedIdx];
+        if (selected && isFinite(selected.lat) && isFinite(selected.lng)) {
+          map.setView([selected.lat, selected.lng], 6);
+        } else if (pts.length) {
+          map.fitBounds(pts);
+        }
+      }
+
+      function selectDay(idx) {
+        selectedIdx = idx;
+        updateView();
+      }
+
+      function updateView() {
+        renderTimeline();
+        renderSelectedOnMap();
+
+        const day = tour.days[selectedIdx];
+        const prev = selectedIdx > 0 ? tour.days[selectedIdx - 1] : null;
+
+        document.getElementById('tourTitle').textContent = tour.name || 'Tur Adı';
+        document.getElementById('tourDateRange').textContent = tour.dateText || '';
+        document.getElementById('ovDayNum').textContent = day.date || `Gün ${selectedIdx + 1}`;
+        document.getElementById('ovTitle').textContent = day.city || day.title || 'Durak';
+        document.getElementById('ovDesc').textContent = day.activity || day.description || '';
+        document.getElementById('photoFront').style.backgroundImage = `url('${day.photoUrl || day.photo || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"}')`;
+        document.getElementById('photoBack').style.backgroundImage = `url('${day.photoUrl || day.photo || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"}')`;
+
+        updateWeather();
+
+        let dist = 0;
+        if (prev && isFinite(prev.lat) && isFinite(prev.lng) && isFinite(day.lat) && isFinite(day.lng)) {
+          dist = getDistance(prev.lat, prev.lng, day.lat, day.lng);
+        }
+
+        document.getElementById('ovDist').textContent = `${dist} km`;
+        document.getElementById('ovTotalDist').textContent = `${selectedIdx === 0 ? 0 : dist} km`;
+        document.getElementById('overlayInfo').classList.add('visible');
+
+        if (day.city) showFunFact(day.city);
+      }
+
+      function startTourView() {
+        document.getElementById('selectionScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'flex';
+
+        tour.days = tour.days.map(d => ({
+          ...d,
+          lat: Number(d.lat),
+          lng: Number(d.lng)
+        }));
+
+        const startDate = parseDate(tour.days[0]?.date);
+        const endDate = parseDate(tour.days[tour.days.length - 1]?.date);
+        if (startDate && endDate) {
+          tour.dateText = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+        }
+
+        initMap();
+        updateView();
+
+        document.getElementById('btnPrev').onclick = () => {
+          selectedIdx = selectedIdx > 0 ? selectedIdx - 1 : tour.days.length - 1;
+          updateView();
+        };
+
+        document.getElementById('btnNext').onclick = () => {
+          selectedIdx = selectedIdx < tour.days.length - 1 ? selectedIdx + 1 : 0;
+          updateView();
+        };
+
+        document.getElementById('btnAutoplay').onclick = () => {
+          if (autoplayInterval) {
+            clearInterval(autoplayInterval);
+            autoplayInterval = null;
+            return;
+          }
+          autoplayInterval = setInterval(() => {
+            selectedIdx = selectedIdx < tour.days.length - 1 ? selectedIdx + 1 : 0;
+            updateView();
+          }, 3000);
+        };
+      }
+
+      document.getElementById('tourSearch').addEventListener('input', (e) => {
+        loadAllTours(e.target.value);
+      });
+
+      initApp();
     })();
   </script>
 </body>
-
 </html>
