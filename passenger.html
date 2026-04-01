@@ -2,25 +2,32 @@
 <html lang="tr">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tur Yolcu Paneli – Canlı Takip</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     :root {
       --bg: #030712;
-      --sidebar-bg: rgba(17, 24, 39, 0.8);
-      --card-bg: rgba(31, 41, 55, 0.4);
-      --border: rgba(255, 255, 255, 0.05);
+      --sidebar-bg: rgba(17, 24, 39, 0.82);
+      --card-bg: rgba(17, 24, 39, 0.72);
+      --card-hover: rgba(25, 36, 60, 0.95);
+      --border: rgba(255, 255, 255, 0.06);
       --text: #f9fafb;
-      --text-muted: #9ca3af;
+      --text-muted: #94a3b8;
       --accent: #60a5fa;
-      --accent-glow: rgba(96, 165, 250, 0.4);
-      --glass: rgba(15, 23, 42, 0.5);
+      --accent-glow: rgba(96, 165, 250, 0.38);
+      --glass: rgba(15, 23, 42, 0.58);
       --radius-lg: 24px;
-      --radius-md: 16px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+      --danger: #ff4d4f;
+      --success: #00d084;
+      --neutral: #94a3b8;
     }
 
     * {
@@ -28,13 +35,21 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    html,
     body {
       margin: 0;
+      padding: 0;
+      min-height: 100%;
       font-family: 'Inter', sans-serif;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at top center, rgba(37, 99, 235, 0.10), transparent 30%),
+        linear-gradient(180deg, #020617 0%, #030712 100%);
       color: var(--text);
-      height: 100vh;
-      overflow: hidden;
+    }
+
+    body {
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     .app {
@@ -62,7 +77,8 @@
 
     .tour-name {
       font-size: 1.5rem;
-      font-weight: 700;
+      font-weight: 800;
+      margin: 0;
       background: linear-gradient(to right, #fff, #9ba3af);
       -webkit-background-clip: text;
       background-clip: text;
@@ -88,12 +104,18 @@
       padding: 16px;
       margin-bottom: 20px;
       cursor: pointer;
-      transition: 0.3s;
+      transition: 0.25s ease;
+    }
+
+    .day-card:hover {
+      background: var(--card-hover);
+      transform: translateY(-2px);
     }
 
     .day-card.active {
       border-color: var(--accent);
-      background: rgba(59, 130, 246, 0.1);
+      background: rgba(59, 130, 246, 0.12);
+      box-shadow: 0 0 0 1px rgba(96,165,250,0.25);
     }
 
     .main {
@@ -113,15 +135,14 @@
       left: 24px;
       width: 340px;
       padding: 24px;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(15, 23, 42, 0.64);
       backdrop-filter: blur(25px);
-      -webkit-backdrop-filter: blur(25px);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: var(--radius-lg);
       z-index: 1000;
       opacity: 0;
       transform: translateY(-20px);
-      transition: 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: 0.45s cubic-bezier(0.16, 1, 0.3, 1);
       pointer-events: none;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     }
@@ -143,25 +164,7 @@
       background: var(--glass);
       border-radius: 50px;
       z-index: 1000;
-    }
-
-    .map-toggle {
-      position: absolute;
-      top: 24px;
-      right: 24px;
-      padding: 12px 20px;
-      background: var(--glass);
-      backdrop-filter: blur(20px);
       border: 1px solid var(--border);
-      border-radius: 50px;
-      z-index: 1000;
-      color: #fff;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .city-photo {
@@ -197,10 +200,6 @@
       margin-top: 20px;
       padding-top: 15px;
       border-top: 1px solid var(--border);
-    }
-
-    .stat-item {
-      text-align: left;
     }
 
     .stat-label {
@@ -266,19 +265,29 @@
 
     .search-input {
       width: 100%;
-      padding: 12px 16px;
-      background: rgba(255, 255, 255, 0.05);
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--border);
-      border-radius: 30px;
+      border-radius: 999px;
       color: #fff;
       outline: none;
+      font-size: 0.95rem;
+    }
+
+    .search-input::placeholder {
+      color: #7c8aa5;
+    }
+
+    .search-input:focus {
+      border-color: rgba(96, 165, 250, 0.35);
+      box-shadow: 0 0 0 4px rgba(96,165,250,0.08);
     }
 
     .marker-dot {
-      width: 20px;
-      height: 20px;
-      background: var(--accent);
-      border: 3px solid #fff;
+      width: 12px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.3);
+      border: 2px solid var(--border);
       border-radius: 50%;
     }
 
@@ -299,14 +308,7 @@
       pointer-events: none;
       z-index: 5000 !important;
       transition: transform 0.5s ease;
-    }
-
-    .marker-dot {
-      width: 12px;
-      height: 12px;
-      background: rgba(255, 255, 255, 0.3);
-      border: 2px solid var(--border);
-      border-radius: 50%;
+      animation: pulse 2s infinite;
     }
 
     .loader {
@@ -321,6 +323,18 @@
     @keyframes spin {
       to {
         transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 var(--accent-glow);
+      }
+      70% {
+        box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
       }
     }
 
@@ -346,79 +360,292 @@
       transform: translateX(0);
     }
 
-    @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 var(--accent-glow);
-      }
-
-      70% {
-        box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
-      }
-
-      100% {
-        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-      }
-    }
-
-    .airplane-marker {
-      animation: pulse 2s infinite;
-    }
-
-    /* Tur seçim ekranı için özel stiller */
-    #tourSelectionContent {
-      display: none;
-      width: 100%;
-      max-width: 1000px;
-      height: 90vh;
+    /* seçim ekranı */
+    #selectionScreen {
+      position: relative;
+      min-height: 100vh;
+      background: transparent;
+      z-index: 2000;
       display: flex;
       flex-direction: column;
+      overflow: visible;
+    }
+
+    #worldMapSection {
+      display: none;
+      min-height: 44vh;
+      height: 44vh;
+      background: linear-gradient(135deg, #10203a 0%, #091120 100%);
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #weeklyMap {
+      width: 100%;
+      height: 100%;
+    }
+
+    .weekly-map-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(3,7,18,0.18), rgba(3,7,18,0.05) 35%, rgba(3,7,18,0.42));
+      z-index: 500;
+    }
+
+    .weekly-map-title {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 700;
+      text-align: center;
+      width: calc(100% - 40px);
+      pointer-events: none;
+    }
+
+    .weekly-map-title h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 0;
+      background: linear-gradient(to right, #60a5fa, #fff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .weekly-map-title p {
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-size: 0.92rem;
+    }
+
+    .weekly-marker {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #60a5fa;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 0 rgba(96,165,250,.7);
+      animation: weeklyPulse 1.8s infinite;
+    }
+
+    @keyframes weeklyPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(96,165,250,.7);
+        opacity: 1;
+      }
+      70% {
+        transform: scale(1.18);
+        box-shadow: 0 0 0 18px rgba(96,165,250,0);
+        opacity: .7;
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(96,165,250,0);
+        opacity: 1;
+      }
+    }
+
+    #tourSelectionContent {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 48px;
+      overflow: visible;
     }
 
     .selection-header {
+      max-width: 1200px;
+      width: 100%;
       text-align: center;
-      flex-shrink: 0;
-      padding-bottom: 20px;
+      padding-bottom: 26px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: linear-gradient(180deg, rgba(3,7,18,0.96) 0%, rgba(3,7,18,0.90) 75%, rgba(3,7,18,0) 100%);
+      backdrop-filter: blur(8px);
+    }
+
+    .selection-header h1 {
+      font-size: 3rem;
+      margin: 0 0 12px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .selection-header p {
+      color: var(--text-muted);
+      margin: 0 0 30px;
+      font-size: 1rem;
     }
 
     #tourGrid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
       width: 100%;
-      overflow-y: auto;
-      padding: 20px 4px;
-      flex: 1;
+      max-width: 1200px;
+      padding: 10px 6px 40px;
+      overflow: visible;
     }
 
-    /* Scrollbar stilleri */
-    #tourGrid::-webkit-scrollbar {
-      width: 8px;
+    .tour-section-title {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 30px;
+      margin-bottom: 6px;
     }
 
-    #tourGrid::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
+    .tour-section-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      box-shadow: inset 0 0 20px rgba(255,255,255,0.18), 0 0 24px rgba(255,255,255,0.08);
+      flex-shrink: 0;
     }
 
-    #tourGrid::-webkit-scrollbar-thumb {
-      background: var(--accent);
-      border-radius: 10px;
+    .tour-section-dot.red {
+      background: radial-gradient(circle at 30% 30%, #ff8a8a, #ff3355 70%);
     }
 
-    #tourGrid::-webkit-scrollbar-thumb:hover {
-      background: #4a9ff5;
+    .tour-section-dot.green {
+      background: radial-gradient(circle at 30% 30%, #9cffc5, #00d084 70%);
+    }
+
+    .tour-section-dot.gray {
+      background: radial-gradient(circle at 30% 30%, #d7dde8, #6b7280 70%);
+    }
+
+    .tour-section-title h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .tour-section-title .count {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-left: 4px;
+    }
+
+    .tour-card {
+      background: linear-gradient(180deg, rgba(13, 23, 44, 0.92), rgba(11, 18, 32, 0.92));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 22px;
+      padding: 20px;
+      text-align: left;
+      min-height: 154px;
+      transition: 0.25s ease;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+    }
+
+    .tour-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(96,165,250,0.20);
+      background: linear-gradient(180deg, rgba(16, 28, 52, 0.96), rgba(11, 18, 32, 0.96));
+    }
+
+    .tour-card-title {
+      font-size: 1rem;
+      line-height: 1.35;
+      font-weight: 800;
+      margin-bottom: 14px;
+      color: #fff;
+    }
+
+    .tour-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #b4c0d3;
+      font-size: 0.78rem;
+      margin-bottom: 8px;
+    }
+
+    .tour-card-meta:last-child {
+      margin-bottom: 0;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--text-muted);
+      border: 1px dashed rgba(255,255,255,0.08);
+      border-radius: 22px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(96, 165, 250, 0.72);
+      border-radius: 999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(96, 165, 250, 0.92);
+    }
+
+    @media (max-width: 1180px) {
+      #tourGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      #worldMapSection {
+        height: 36vh;
+        min-height: 260px;
+      }
+
+      .selection-header h1 {
+        font-size: 2.1rem;
+      }
+
+      #tourGrid {
+        grid-template-columns: 1fr;
+      }
+
+      #tourSelectionContent {
+        padding: 34px 16px 36px;
+      }
     }
   </style>
 </head>
 
 <body>
-  <div id="selectionScreen"
-    style="position:fixed; inset:0; background:var(--bg); z-index:2000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
-    <div class="loader" id="mainLoader"></div>
+  <div id="selectionScreen">
+    <div class="loader" id="mainLoader" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999;"></div>
+
+    <div id="worldMapSection">
+      <div id="weeklyMap"></div>
+      <div class="weekly-map-overlay"></div>
+      <div class="weekly-map-title">
+        <h2>🌍 Bu Hafta Nerelerdeyim?</h2>
+        <p id="activeCountriesText">Yükleniyor...</p>
+      </div>
+    </div>
+
     <div id="tourSelectionContent">
       <div class="selection-header">
-        <h1 style="font-size:2rem; margin-bottom:8px;">Planlanmış Turlar</h1>
-        <p style="color:var(--text-muted); margin-bottom:24px;">Takip etmek istediğiniz turu seçin</p>
+        <h1>Planlanmış Turlar</h1>
+        <p>Takip etmek istediğiniz turu seçin</p>
         <div class="search-container">
           <input type="text" id="tourSearch" class="search-input" placeholder="Tur adı veya şehir ara...">
         </div>
@@ -431,14 +658,16 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h1 class="tour-name" id="tourTitle">Tur Adı</h1>
-        <div id="tourDateRange" style="font-size:0.85rem; color:var(--text-muted);">...</div>
+        <div id="tourDateRange" style="font-size:0.85rem; color:var(--text-muted); margin-top:6px;">...</div>
       </div>
       <div class="sidebar-content">
         <div class="timeline" id="timeline"></div>
       </div>
     </aside>
+
     <main class="main">
       <div id="map"></div>
+
       <div class="theme-palette">
         <div class="theme-btn" onclick="toggleMap('dark')" title="Karanlık Mod">🌑</div>
         <div class="theme-btn" onclick="toggleMap('sat')" title="Uydu Görünümü">📡</div>
@@ -458,27 +687,25 @@
         <div id="ovDesc" style="font-size:0.95rem; line-height:1.6; color:var(--text-muted);"></div>
 
         <div class="travel-stats">
-          <div class="stat-item">
+          <div>
             <div class="stat-label">Bu Etap</div>
             <div class="stat-value" id="ovDist">- km</div>
           </div>
-          <div class="stat-item">
+          <div>
             <div class="stat-label">Toplam Yol</div>
             <div class="stat-value" id="ovTotalDist">- km</div>
           </div>
         </div>
       </div>
+
       <div class="bottom-nav">
         <button id="btnPrev" style="background:none; border:none; color:#fff; cursor:pointer;">◀</button>
-        <button id="btnAutoplay"
-          style="background:var(--accent); border:none; color:#fff; padding:8px 16px; border-radius:30px; cursor:pointer; font-weight:600; font-size:1.1rem;">✈️
-        </button>
+        <button id="btnAutoplay" style="background:var(--accent); border:none; color:#fff; padding:8px 16px; border-radius:30px; cursor:pointer; font-weight:600; font-size:1.1rem;">✈️</button>
         <button id="btnNext" style="background:none; border:none; color:#fff; cursor:pointer;">▶</button>
       </div>
+
       <div class="fun-fact-card" id="funFactCard">
-        <div
-          style="font-size:0.7rem; color:var(--accent); text-transform:uppercase; font-weight:700; letter-spacing:1px; margin-bottom:8px;">
-          Biliyor muydunuz?</div>
+        <div style="font-size:0.7rem; color:var(--accent); text-transform:uppercase; font-weight:700; letter-spacing:1px; margin-bottom:8px;">Biliyor muydunuz?</div>
         <div id="funFactText" style="font-size:0.9rem; line-height:1.5;"></div>
       </div>
     </main>
@@ -489,24 +716,41 @@
       const API_URL = "https://ejdervip.com/api/tours";
 
       let map = null, markers = [], polyline = null;
+      let weeklyMap = null, weeklyMarkers = [], weeklyPolyline = null;
       let tour = null, selectedIdx = 0, autoplayInterval = null;
-      let animationFrame = null;
 
-      const SMART_ICONS = {
-        'Otel': '🏨', 'Konaklama': '🏨', 'Hotel': '🏨',
-        'Uçuş': '✈️', 'Havalimanı': '✈️', 'Uçak': '✈️',
-        'Kahvaltı': '🍳', 'Yemek': '🍽️', 'Restoran': '🍽️',
-        'Tur': '🏛️', 'Müze': '🏛️', 'Tapınak': '⛩️',
-        'Tren': '🚄', 'Shinkansen': '🚄', 'Transfer': '🚐'
+      const FUN_FACTS = {
+        'Seul': 'Seul, dünyanın en hızlı internetine ve tek bir şehirdeki en büyük metro hattına sahip şehirlerinden biridir.',
+        'Tokyo': 'Dünyanın en kalabalık metropolü olan Tokyo’da, her gün milyonlarca kişi metro sistemini kullanır.',
+        'Kyoto': 'Kyoto, Japonya’nın en güçlü tarihî dokusunu taşıyan şehirlerinden biridir.',
+        'Hiroşima': 'Hiroşima bugün dünya barışının en önemli sembollerinden biridir.',
+        'Fuji': 'Fuji Dağı, Japonya’nın en ikonik doğal simgelerinden biridir.',
+        'İstanbul': 'İstanbul, dünyada iki kıta üzerine kurulu en önemli metropollerden biridir.',
+        'Singapur': 'Singapur, dünyanın en yeşil şehirlerinden biridir.'
       };
 
-      function getSmartIcon(text) {
-        if (!text) return '📍';
-        const lower = text.toLowerCase();
-        for (let key in SMART_ICONS) {
-          if (lower.includes(key.toLowerCase())) return SMART_ICONS[key];
+      function parseDate(dateStr) {
+        if (!dateStr) return null;
+        if (typeof dateStr === 'string' && dateStr.includes('.')) {
+          const [day, month, year] = dateStr.split('.');
+          return new Date(year, month - 1, day);
         }
-        return '📍';
+        return new Date(dateStr);
+      }
+
+      function formatDate(date) {
+        return date.toLocaleDateString('tr-TR');
+      }
+
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c);
       }
 
       function getCurvedPoints(p1, p2, segments = 50) {
@@ -526,33 +770,89 @@
         return points;
       }
 
-      const FUN_FACTS = {
-        'Seul': 'Seul, dünyanın en hızlı internetine ve tek bir şehirdeki en büyük metro hattına sahip şehirlerinden biridir.',
-        'Tokyo': 'Dünyanın en kalabalık metropolü olan Tokyo\'da, her gün yaklaşık 3.5 milyon kişi sadece Shinjuku İstasyonu\'nu kullanır.',
-        'Kyoto': 'Kyoto, İkinci Dünya Savaşı sırasında tarihi güzelliği nedeniyle bombalanmaktan vazgeçilmiş nadir şehirlerdendir.',
-        'Hiroşima': 'Atom bombasından sonra küllerinden doğan Hiroşima, bugün dünya barışının en önemli sembollerinden biridir.',
-        'Fuji': 'Fuji Dağı aslında üst üste binmiş üç ayrı volkandan oluşan bir stratovolkandır.',
-        'İstanbul': 'İstanbul, dünyada iki kıta (Asya ve Avrupa) üzerine kurulu tek metropoldür.',
-        'Singapur': 'Singapur, dünyanın en yeşil şehirlerinden biridir ve "Bahçe Şehir" olarak anılır.'
-      };
+      function updateWeather() {
+        const icons = ['☀️', '⛅', '☁️', '🌧️'];
+        const temp = Math.floor(Math.random() * 11) + 18;
+        const icon = icons[Math.floor(Math.random() * icons.length)];
+        document.getElementById('ovWeather').innerHTML = `${icon} ${temp}°C`;
+      }
 
       function showFunFact(city) {
         const card = document.getElementById('funFactCard');
         const text = document.getElementById('funFactText');
-        let fact = FUN_FACTS[city] || `${city}, bölgenin en önemli turistik ve kültürel merkezlerinden biri olarak bilinir.`;
-
-        text.textContent = fact;
+        text.textContent = FUN_FACTS[city] || `${city}, tur programındaki önemli destinasyonlardan biridir.`;
         card.classList.add('visible');
-        setTimeout(() => card.classList.remove('visible'), 6000);
+        setTimeout(() => card.classList.remove('visible'), 5000);
       }
 
-      function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return Math.round(R * c);
+      function initWeeklyMap() {
+        if (weeklyMap) {
+          weeklyMap.remove();
+        }
+
+        weeklyMap = L.map('weeklyMap', {
+          zoomControl: false,
+          attributionControl: false
+        }).setView([25, 20], 2);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(weeklyMap);
+      }
+
+      function displayWeeklyLocations(days) {
+        if (!weeklyMap) initWeeklyMap();
+
+        weeklyMarkers.forEach(m => weeklyMap.removeLayer(m));
+        weeklyMarkers = [];
+
+        if (weeklyPolyline) {
+          weeklyMap.removeLayer(weeklyPolyline);
+          weeklyPolyline = null;
+        }
+
+        const activeText = document.getElementById('activeCountriesText');
+        const points = [];
+        const countries = new Set();
+
+        days.forEach((day, index) => {
+          if (!isFinite(day.lat) || !isFinite(day.lng)) return;
+
+          if (day.country) countries.add(day.country);
+          points.push([day.lat, day.lng]);
+
+          const icon = L.divIcon({
+            className: '',
+            html: '<div class="weekly-marker"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+
+          const marker = L.marker([day.lat, day.lng], { icon })
+            .addTo(weeklyMap)
+            .bindTooltip(`${day.city || day.country || 'Durak'}`, { permanent: false });
+
+          weeklyMarkers.push(marker);
+        });
+
+        if (countries.size) {
+          activeText.textContent = `${Array.from(countries).join(', ')} · ${countries.size} ülke`;
+        } else {
+          activeText.textContent = 'Bu hafta aktif tur bulunmuyor';
+        }
+
+        if (points.length >= 2) {
+          weeklyPolyline = L.polyline(points, {
+            color: '#60a5fa',
+            weight: 2.5,
+            opacity: 0.85,
+            dashArray: '8, 8'
+          }).addTo(weeklyMap);
+
+          weeklyMap.fitBounds(weeklyPolyline.getBounds(), { padding: [30, 30] });
+        } else if (points.length === 1) {
+          weeklyMap.setView(points[0], 5);
+        } else {
+          weeklyMap.setView([25, 20], 2);
+        }
       }
 
       window.toggleMap = function (type) {
@@ -562,13 +862,6 @@
 
         map.eachLayer(layer => { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
         L.tileLayer(url, { attribution: '© OpenStreetMap' }).addTo(map);
-      }
-
-      function updateWeather() {
-        const icons = ['☀️', '⛅', '☁️', '🌧️'];
-        const temp = Math.floor(Math.random() * (28 - 18 + 1)) + 18;
-        const icon = icons[Math.floor(Math.random() * icons.length)];
-        document.getElementById('ovWeather').innerHTML = `${icon} ${temp}°C`;
       }
 
       async function initApp() {
@@ -581,7 +874,9 @@
               startTourView();
               return;
             }
-          } catch (e) { console.error("Veri hatası", e); }
+          } catch (e) {
+            console.error("Veri hatası", e);
+          }
         }
         loadAllTours();
       }
@@ -591,211 +886,266 @@
           const res = await fetch(API_URL);
           const tours = await res.json();
           showSelection(tours, query);
-        } catch (e) { console.error("Bağlantı hatası"); }
+        } catch (e) {
+          console.error("Bağlantı hatası");
+        }
       }
 
       function showSelection(tours, filter = '') {
         const grid = document.getElementById('tourGrid');
         const content = document.getElementById('tourSelectionContent');
-        document.getElementById('mainLoader').style.display = 'none';
+        const worldMapSection = document.getElementById('worldMapSection');
+        const mainLoader = document.getElementById('mainLoader');
+
+        mainLoader.style.display = 'none';
         content.style.display = 'flex';
+        worldMapSection.style.display = 'block';
         grid.innerHTML = '';
 
         const query = filter.toLowerCase().trim();
-        tours.filter(t => t.name.toLowerCase().includes(query)).forEach(t => {
-          const card = document.createElement('div');
-          card.className = 'day-card';
-          card.style.textAlign = 'left';
-          card.innerHTML = `<strong>${t.name}</strong><br><small style="color:var(--text-muted)">${t.days.length} Gün</small>`;
-          card.onclick = () => window.location.search = `?tourId=${t.id}`;
-          grid.appendChild(card);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const weekStart = new Date(now);
+        const dayOfWeek = weekStart.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        weekStart.setDate(weekStart.getDate() + mondayOffset);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        const pastTours = [];
+        const currentTours = [];
+        const futureTours = [];
+        const weeklyDays = [];
+
+        tours.forEach(t => {
+          if (!t.days || t.days.length === 0) return;
+          if (!t.name || !t.name.toLowerCase().includes(query)) return;
+
+          const firstDay = t.days[0];
+          const lastDay = t.days[t.days.length - 1];
+          const startDate = parseDate(firstDay.date);
+          const endDate = parseDate(lastDay.date);
+
+          if (!startDate || !endDate) return;
+
+          const normalizedDays = t.days.map(day => ({
+            ...day,
+            lat: Number(day.lat),
+            lng: Number(day.lng)
+          }));
+
+          const tourData = {
+            ...t,
+            days: normalizedDays,
+            startDate,
+            endDate,
+            dateText: `${formatDate(startDate)} - ${formatDate(endDate)}`
+          };
+
+          normalizedDays.forEach(day => {
+            const dayDate = parseDate(day.date);
+            if (dayDate && dayDate >= weekStart && dayDate <= weekEnd) {
+              weeklyDays.push(day);
+            }
+          });
+
+          if (endDate < now) {
+            pastTours.push(tourData);
+          } else if (startDate <= now && endDate >= now) {
+            currentTours.push(tourData);
+          } else {
+            futureTours.push(tourData);
+          }
         });
-      }
 
-      function startTourView() {
-        document.getElementById('selectionScreen').style.display = 'none';
-        document.getElementById('mainApp').style.display = 'flex';
-        document.getElementById('tourTitle').textContent = tour.name;
-        renderTimeline(); initMap(); updateView();
-      }
+        pastTours.sort((a, b) => b.startDate - a.startDate);
+        currentTours.sort((a, b) => a.startDate - b.startDate);
+        futureTours.sort((a, b) => a.startDate - b.startDate);
 
-      function renderTimeline() {
-        const c = document.getElementById('timeline'); c.innerHTML = '';
-        tour.days.forEach((day, idx) => {
-          const card = document.createElement('div');
-          card.className = `day-card ${idx === selectedIdx ? 'active' : ''}`;
-          const icon = getSmartIcon(day.activity || day.city);
-          card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:1.2rem;">${icon}</span>
-                <strong>Gün ${day.dayNumber}</strong>
+        initWeeklyMap();
+        displayWeeklyLocations(weeklyDays);
+
+        const createSection = (title, tours, dotClass, color) => {
+          if (!tours.length) return;
+
+          const section = document.createElement('div');
+          section.className = 'tour-section-title';
+          section.innerHTML = `
+            <div class="tour-section-dot ${dotClass}"></div>
+            <h2 style="color:${color}">${title}</h2>
+            <span class="count">(${tours.length})</span>
+          `;
+          grid.appendChild(section);
+
+          tours.forEach(t => {
+            const card = document.createElement('div');
+            card.className = 'tour-card';
+            card.innerHTML = `
+              <div class="tour-card-title">${t.name}</div>
+              <div class="tour-card-meta">
+                <span>🗓️</span>
+                <span>${t.dateText}</span>
               </div>
-              <span style="font-size:0.75rem; background:rgba(255,255,255,0.08); padding:4px 8px; border-radius:20px; border:1px solid rgba(255,255,255,0.1);">${day.hour || ''}</span>
-            </div>
-            <div style="font-size:0.95rem; margin-top:8px; font-weight:500;">${day.city || ''}</div>
-            <small style="display:block; opacity:0.5; font-size:0.75rem; margin-top:2px;">${day.country || ''}</small>
-            <div style="margin-top:8px; font-size:0.85rem; color:var(--text-muted); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${day.activity || ''}</div>`;
-          card.onclick = () => selectDay(idx);
-          c.appendChild(card);
-        });
+              <div class="tour-card-meta">
+                <span>⏱️</span>
+                <span>${t.days.length} Gün</span>
+              </div>
+            `;
+            card.onclick = () => window.location.search = `?tourId=${t.id}`;
+            grid.appendChild(card);
+          });
+        };
+
+        createSection('Devam Eden Turlar', currentTours, 'red', '#ff4d4f');
+        createSection('Gelecek Turlar', futureTours, 'green', '#00d084');
+        createSection('Geçmiş Turlar', pastTours, 'gray', '#cbd5e1');
+
+        if (pastTours.length === 0 && currentTours.length === 0 && futureTours.length === 0) {
+          grid.innerHTML = '<div class="empty-state">Aramanıza uygun tur bulunamadı</div>';
+        }
       }
 
       function initMap() {
         if (map) return;
         map = L.map('map', { zoomControl: false, attributionControl: false }).setView([20, 0], 2);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-        const pts = tour.days.filter(d => d.lat != null).map(d => [d.lat, d.lng]);
-        if (pts.length >= 2) L.polyline(pts, { color: '#3b82f6', weight: 3, dashArray: '5, 10' }).addTo(map);
+      }
+
+      function renderTimeline() {
+        const c = document.getElementById('timeline');
+        c.innerHTML = '';
         tour.days.forEach((day, idx) => {
-          if (day.lat == null) return;
-          const dotIcon = L.divIcon({ className: 'custom-marker', html: `<div class="marker-dot"></div>`, iconSize: [12, 12], iconAnchor: [6, 6] });
+          const card = document.createElement('div');
+          card.className = `day-card ${idx === selectedIdx ? 'active' : ''}`;
+          card.innerHTML = `
+            <div style="font-size:0.72rem; color:var(--accent); font-weight:700; margin-bottom:6px;">${day.date || `Gün ${idx + 1}`}</div>
+            <div style="font-size:1rem; font-weight:700; margin-bottom:8px;">${day.city || day.title || 'Durak'}</div>
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.4;">${day.activity || day.description || ''}</div>
+          `;
+          card.onclick = () => selectDay(idx);
+          c.appendChild(card);
+        });
+      }
+
+      function renderSelectedOnMap() {
+        markers.forEach(m => m && map.removeLayer(m));
+        markers = [];
+        if (polyline) {
+          map.removeLayer(polyline);
+          polyline = null;
+        }
+
+        const pts = tour.days.filter(d => isFinite(d.lat) && isFinite(d.lng)).map(d => [d.lat, d.lng]);
+        if (pts.length >= 2) {
+          polyline = L.polyline(pts, { color: '#3b82f6', weight: 3, dashArray: '5, 10' }).addTo(map);
+        }
+
+        tour.days.forEach((day, idx) => {
+          if (!isFinite(day.lat) || !isFinite(day.lng)) return;
+
+          const dotIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="marker-dot ${idx === selectedIdx ? 'selected' : ''}"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          });
+
           markers[idx] = L.marker([day.lat, day.lng], { icon: dotIcon }).addTo(map).on('click', () => selectDay(idx));
         });
 
-        const planeIcon = L.divIcon({ className: 'custom-marker', html: `<div class="airplane-marker">\u2708\ufe0f</div>`, iconSize: [40, 40], iconAnchor: [20, 20] });
-        const startDay = tour.days.find(d => d.lat != null) || { lat: 20, lng: 0 };
-        airplaneMarker = L.marker([startDay.lat, startDay.lng], { icon: planeIcon, zIndexOffset: 1000 }).addTo(map);
+        const selected = tour.days[selectedIdx];
+        if (selected && isFinite(selected.lat) && isFinite(selected.lng)) {
+          map.setView([selected.lat, selected.lng], 6);
+        } else if (pts.length) {
+          map.fitBounds(pts);
+        }
       }
 
       function selectDay(idx) {
-        if (idx < 0 || idx >= tour.days.length) return;
-        const prevIdx = selectedIdx;
         selectedIdx = idx;
         updateView();
-
-        const start = tour.days[prevIdx], end = tour.days[idx];
-        if (start && end && start.lat != null && end.lat != null) {
-          if (prevIdx !== idx) {
-            const curve = getCurvedPoints([start.lat, start.lng], [end.lat, end.lng]);
-            const dist = getDistance(start.lat, start.lng, end.lat, end.lng);
-
-            let flyZoom = 12;
-            if (dist > 1000) flyZoom = 4;
-            else if (dist > 500) flyZoom = 6;
-
-            animatePlaneAlongCurve(curve, 10000);
-            map.flyTo([end.lat, end.lng], 12, { duration: 10, easeLinearity: 0.1 });
-
-            setTimeout(() => {
-              if (end.city) showFunFact(end.city);
-            }, 9500);
-          } else {
-            if (airplaneMarker) airplaneMarker.setLatLng([end.lat, end.lng]);
-            map.setView([end.lat, end.lng], 12);
-          }
-        }
-
-        const activeCard = document.querySelector('.day-card.active');
-        if (activeCard) activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      function animatePlaneAlongCurve(curve, duration) {
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-        const startTime = performance.now();
-
-        function step(now) {
-          const t = Math.min(1, (now - startTime) / duration);
-          const index = Math.floor(t * (curve.length - 1));
-          const p = curve[index];
-          const nextP = curve[index + 1] || p;
-
-          const angle = Math.atan2(nextP[1] - p[1], nextP[0] - p[0]) * (180 / Math.PI);
-
-          if (airplaneMarker) {
-            airplaneMarker.setLatLng([p[0], p[1]]);
-            const el = airplaneMarker.getElement();
-            if (el) {
-              const inner = el.querySelector('.airplane-marker');
-              if (inner) inner.style.transform = `rotate(${angle + 90}deg)`;
-            }
-          }
-          if (t < 1) animationFrame = requestAnimationFrame(step);
-        }
-        animationFrame = requestAnimationFrame(step);
       }
 
       function updateView() {
-        document.querySelectorAll('.day-card').forEach((c, i) => c.classList.toggle('active', i === selectedIdx));
-        const d = tour.days[selectedIdx];
-        if (d) {
-          document.getElementById('overlayInfo').classList.add('visible');
-          document.getElementById('ovDayNum').textContent = `Gün ${d.dayNumber} - ${d.hour || ''}`;
-          document.getElementById('ovTitle').textContent = `${d.city || ''}${d.country ? ', ' + d.country : ''}`;
-          document.getElementById('ovDesc').textContent = d.activity;
-          updateWeather();
+        renderTimeline();
+        renderSelectedOnMap();
 
-          if (d.photoUrl) {
-            const front = document.getElementById('photoFront');
-            const back = document.getElementById('photoBack');
+        const day = tour.days[selectedIdx];
+        const prev = selectedIdx > 0 ? tour.days[selectedIdx - 1] : null;
 
-            back.style.backgroundImage = `url(${d.photoUrl})`;
-            back.style.opacity = 1;
-            front.style.opacity = 0;
+        document.getElementById('tourTitle').textContent = tour.name || 'Tur Adı';
+        document.getElementById('tourDateRange').textContent = tour.dateText || '';
+        document.getElementById('ovDayNum').textContent = day.date || `Gün ${selectedIdx + 1}`;
+        document.getElementById('ovTitle').textContent = day.city || day.title || 'Durak';
+        document.getElementById('ovDesc').textContent = day.activity || day.description || '';
+        document.getElementById('photoFront').style.backgroundImage = `url('${day.photoUrl || day.photo || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"}')`;
+        document.getElementById('photoBack').style.backgroundImage = `url('${day.photoUrl || day.photo || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"}')`;
 
-            setTimeout(() => {
-              front.style.backgroundImage = `url(${d.photoUrl})`;
-              front.style.opacity = 1;
-              back.style.opacity = 0;
-            }, 1500);
-          }
+        updateWeather();
 
-          markers.forEach((m, i) => {
-            const el = m.getElement();
-            if (el) {
-              const dot = el.querySelector('.marker-dot');
-              if (dot) dot.classList.toggle('selected', i === selectedIdx);
-            }
-          });
-
-          if (selectedIdx > 0) {
-            const prev = tour.days[selectedIdx - 1];
-            if (prev.lat && d.lat) {
-              const dist = getDistance(prev.lat, prev.lng, d.lat, d.lng);
-              document.getElementById('ovDist').textContent = dist + " km";
-            }
-          } else {
-            document.getElementById('ovDist').textContent = "Başlangıç";
-          }
-
-          let total = 0;
-          for (let i = 1; i <= selectedIdx; i++) {
-            const p1 = tour.days[i - 1], p2 = tour.days[i];
-            if (p1.lat && p2.lat) total += getDistance(p1.lat, p1.lng, p2.lat, p2.lng);
-          }
-          document.getElementById('ovTotalDist').textContent = total + " km";
+        let dist = 0;
+        if (prev && isFinite(prev.lat) && isFinite(prev.lng) && isFinite(day.lat) && isFinite(day.lng)) {
+          dist = getDistance(prev.lat, prev.lng, day.lat, day.lng);
         }
+
+        document.getElementById('ovDist').textContent = `${dist} km`;
+        document.getElementById('ovTotalDist').textContent = `${selectedIdx === 0 ? 0 : dist} km`;
+        document.getElementById('overlayInfo').classList.add('visible');
+
+        if (day.city) showFunFact(day.city);
       }
 
-      document.getElementById('tourSearch').oninput = (e) => loadAllTours(e.target.value);
-      document.getElementById('btnPrev').onclick = () => selectDay(selectedIdx - 1);
-      document.getElementById('btnNext').onclick = () => selectDay(selectedIdx + 1);
-      document.getElementById('btnAutoplay').onclick = () => {
-        const btn = document.getElementById('btnAutoplay');
-        if (autoplayInterval) {
-          clearInterval(autoplayInterval);
-          autoplayInterval = null;
-          btn.textContent = '\u2708\ufe0f';
-          btn.style.background = 'var(--accent)';
-        } else {
-          btn.textContent = '\u23f9\ufe0f';
-          btn.style.background = '#ef4444';
-          autoplayInterval = setInterval(() => {
-            if (selectedIdx < tour.days.length - 1) {
-              selectDay(selectedIdx + 1);
-            } else {
-              clearInterval(autoplayInterval);
-              autoplayInterval = null;
-              btn.textContent = '\u2708\ufe0f';
-              btn.style.background = 'var(--accent)';
-            }
-          }, 15000);
+      function startTourView() {
+        document.getElementById('selectionScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'flex';
+
+        tour.days = tour.days.map(d => ({
+          ...d,
+          lat: Number(d.lat),
+          lng: Number(d.lng)
+        }));
+
+        const startDate = parseDate(tour.days[0]?.date);
+        const endDate = parseDate(tour.days[tour.days.length - 1]?.date);
+        if (startDate && endDate) {
+          tour.dateText = `${formatDate(startDate)} - ${formatDate(endDate)}`;
         }
-      };
+
+        initMap();
+        updateView();
+
+        document.getElementById('btnPrev').onclick = () => {
+          selectedIdx = selectedIdx > 0 ? selectedIdx - 1 : tour.days.length - 1;
+          updateView();
+        };
+
+        document.getElementById('btnNext').onclick = () => {
+          selectedIdx = selectedIdx < tour.days.length - 1 ? selectedIdx + 1 : 0;
+          updateView();
+        };
+
+        document.getElementById('btnAutoplay').onclick = () => {
+          if (autoplayInterval) {
+            clearInterval(autoplayInterval);
+            autoplayInterval = null;
+            return;
+          }
+          autoplayInterval = setInterval(() => {
+            selectedIdx = selectedIdx < tour.days.length - 1 ? selectedIdx + 1 : 0;
+            updateView();
+          }, 3000);
+        };
+      }
+
+      document.getElementById('tourSearch').addEventListener('input', (e) => {
+        loadAllTours(e.target.value);
+      });
 
       initApp();
     })();
   </script>
 </body>
-
 </html>
