@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tur Yolcu Paneli – Canlı Takip</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #030712;
+      --sidebar-bg: rgba(17, 24, 39, 0.82);
+      --card-bg: rgba(17, 24, 39, 0.72);
+      --card-hover: rgba(25, 36, 60, 0.95);
+      --border: rgba(255, 255, 255, 0.06);
+      --text: #f9fafb;
+      --text-muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-glow: rgba(96, 165, 250, 0.38);
+      --glass: rgba(15, 23, 42, 0.58);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+      --danger: #ff4d4f;
+      --success: #00d084;
+      --neutral: #94a3b8;
+    }
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top center, rgba(37,99,235,0.10), transparent 30%), linear-gradient(180deg, #020617 0%, #030712 100%);
+      color: var(--text);
+    }
+    body { overflow-x: hidden; overflow-y: auto; }
+    .app { display: flex; height: 100vh; position: relative; }
+    .sidebar {
+      width: 400px; min-width: 400px;
+      background: var(--sidebar-bg);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      z-index: 100;
+      box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    }
+    .sidebar-header { padding: 32px 24px 24px; border-bottom: 1px solid var(--border); }
+    .tour-name {
+      font-size: 1.5rem; font-weight: 800; margin: 0;
+      background: linear-gradient(to right, #fff, #9ba3af);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sidebar-content { flex: 1; overflow-y: auto; padding: 24px; }
+    .timeline { position: relative; padding-left: 20px; border-left: 2px solid var(--border); }
+    .day-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;
+      cursor: pointer; transition: 0.25s ease;
+    }
+    .day-card:hover { background: var(--card-hover); transform: translateY(-2px); }
+    .day-card.active { border-color: var(--accent); background: rgba(59,130,246,0.12); box-shadow: 0 0 0 1px rgba(96,165,250,0.25); }
+    .main { flex: 1; position: relative; background: #000; }
+    #map { width: 100%; height: 100%; }
+    .overlay-info {
+      position: absolute; top: 24px; left: 24px; width: 340px; padding: 24px;
+      background: rgba(15,23,42,0.64); backdrop-filter: blur(25px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-lg);
+      z-index: 1000; opacity: 0; transform: translateY(-20px);
+      transition: 0.45s cubic-bezier(0.16,1,0.3,1);
+      pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    .overlay-info.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .bottom-nav {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; padding: 12px 20px;
+      background: var(--glass); border-radius: 50px; z-index: 1000; border: 1px solid var(--border);
+    }
+    .city-photo {
+      width: 100%; height: 180px; border-radius: var(--radius-md);
+      position: relative; overflow: hidden; margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    .city-photo div { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.5s ease-in-out; }
+    .photo-back { opacity: 0; }
+    .photo-front { opacity: 1; }
+    .travel-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border); }
+    .stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 1rem; font-weight: 700; color: var(--accent); }
+    .weather-badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      background: rgba(255,255,255,0.08); border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+      margin-top: 10px; border: 1px solid var(--border);
+    }
+    .theme-palette { position: absolute; top: 80px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+    .theme-btn {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--glass); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: 0.2s;
+    }
+    .theme-btn:hover { background: var(--accent); }
+    .search-container { margin-bottom: 10px; width: 100%; position: relative; }
+    .search-input {
+      width: 100%; padding: 11px 18px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 999px; color: #fff; outline: none; font-size: 0.95rem;
+    }
+    .search-input::placeholder { color: #7c8aa5; }
+    .search-input:focus { border-color: rgba(96,165,250,0.35); box-shadow: 0 0 0 4px rgba(96,165,250,0.08); }
+
+    /* Custom red location pin marker */
+    .location-pin-marker {
+      display: flex; align-items: flex-end; justify-content: center;
+      width: 28px; height: 36px;
+    }
+    .location-pin-marker svg { width: 28px; height: 36px; }
+    .location-pin-marker.selected svg { filter: drop-shadow(0 0 8px rgba(255,60,60,0.9)); transform: scale(1.25); }
+
+    .loader {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 var(--accent-glow); }
+      70% { box-shadow: 0 0 0 15px rgba(59,130,246,0); }
+      100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+    }
+    .fun-fact-card {
+      position: absolute; bottom: 100px; right: 24px; width: 300px; padding: 20px;
+      background: rgba(15,23,42,0.7); backdrop-filter: blur(20px);
+      border: 1px solid var(--accent); border-radius: var(--radius-md);
+      z-index: 1000; opacity: 0; transform: translateX(50px);
+      transition: all 0.5s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .fun-fact-card.visible { opacity: 1; transform: translateX(0); }
+
+    /* Selection screen */
+    #selectionScreen {
+      position: relative; min-height: 100vh; background: transparent;
+      z-index: 2000; display: flex; flex-direction: column; overflow: visible;
+    }
+    #worldMapSection {
+      display: none; min-height: 44vh; height: 44vh;
+      background: linear-gradient(135deg, #10203a 0%, #091120 100%);
+      position: relative; overflow: hidden; border-bottom: 1px solid var(--border);
+    }
+    #weeklyMap { width: 100%; height: 100%; }
+    .weekly-map-overlay {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(to bottom, rgba(3,7,18,0.18), rgba(3,7,18,0.05) 35%, rgba(3,7,18,0.42));
+      z-index: 500;
+    }
+    .weekly-map-title {
+      position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+      z-index: 700; text-align: center; width: calc(100% - 40px); pointer-events: none;
+    }
+    .weekly-map-title h2 {
+      font-size: 1.8rem; font-weight: 800; margin: 0;
+      background: linear-gradient(to right, #60a5fa, #fff);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .weekly-map-title p { color: var(--text-muted); margin-top: 8px; font-size: 0.92rem; }
+    /* Ana sayfa haritası: büyüyüp küçülen kırmızı pin */
+    .weekly-pin-wrap {
+      width: 28px; height: 36px;
+      display: flex; align-items: flex-end; justify-content: center;
+      transform-origin: bottom center;
+    }
+    .weekly-pin-wrap svg { width: 28px; height: 36px; display: block; }
+    @keyframes pinPulseA {
+      0%   { transform: scale(1);    opacity: 0.92; }
+      35%  { transform: scale(1.45); opacity: 1;    }
+      65%  { transform: scale(0.72); opacity: 0.6;  }
+      100% { transform: scale(1);    opacity: 0.92; }
+    }
+    @keyframes pinPulseB {
+      0%   { transform: scale(0.85); opacity: 0.7;  }
+      30%  { transform: scale(1.3);  opacity: 1;    }
+      60%  { transform: scale(1.55); opacity: 0.85; }
+      85%  { transform: scale(0.9);  opacity: 0.65; }
+      100% { transform: scale(0.85); opacity: 0.7;  }
+    }
+    @keyframes pinPulseC {
+      0%   { transform: scale(1.2);  opacity: 1;    }
+      45%  { transform: scale(0.65); opacity: 0.55; }
+      75%  { transform: scale(1.4);  opacity: 0.9;  }
+      100% { transform: scale(1.2);  opacity: 1;    }
+    }
+    @keyframes pinPulseD {
+      0%   { transform: scale(0.9);  opacity: 0.8;  }
+      20%  { transform: scale(1.5);  opacity: 1;    }
+      55%  { transform: scale(1.1);  opacity: 0.75; }
+      80%  { transform: scale(0.7);  opacity: 0.5;  }
+      100% { transform: scale(0.9);  opacity: 0.8;  }
+    }
+    #tourSelectionContent {
+      flex: 1; display: none; flex-direction: column; align-items: center;
+      padding: 24px 20px 32px; overflow: visible;
+    }
+    .selection-header {
+      max-width: 1200px; width: 100%; text-align: center; padding-bottom: 12px;
+      position: sticky; top: 0; z-index: 50;
+      background: linear-gradient(180deg, rgba(3,7,18,0.96) 0%, rgba(3,7,18,0.90) 75%, rgba(3,7,18,0) 100%);
+      backdrop-filter: blur(8px);
+    }
+
+    /* Logo + title */
+    .ejder-logo-img {
+      height: 32px; width: auto; object-fit: contain; display: block;
+      margin: 0 auto 10px;
+      filter: brightness(1.05) contrast(1.02);
+    }
+    .selection-header h1 {
+      font-size: 1.7rem; margin: 0 0 4px; font-weight: 800; letter-spacing: -0.02em;
+    }
+    .selection-header .subtitle {
+      color: var(--text-muted); margin: 0 0 14px; font-size: 0.82rem;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .subtitle-divider {
+      width: 24px; height: 1px; background: rgba(255,255,255,0.15); display: inline-block;
+    }
+    .selection-header p { color: var(--text-muted); margin: 0 0 14px; font-size: 0.9rem; }
+    #tourGrid {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px; width: 100%; max-width: 1200px; padding: 10px 6px 40px; overflow: visible;
+    }
+    .tour-section-title { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; margin-top: 30px; margin-bottom: 6px; }
+    .tour-section-dot {
+      width: 34px; height: 34px; border-radius: 999px;
+      box-shadow: inset 0 0 20px rgba(255,255,255,0.18), 0 0 24px rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .tour-section-dot.red { background: radial-gradient(circle at 30% 30%, #ff8a8a, #ff3355 70%); }
+    .tour-section-dot.green { background: radial-gradient(circle at 30% 30%, #9cffc5, #00d084 70%); }
+    .tour-section-dot.gray { background: radial-gradient(circle at 30% 30%, #d7dde8, #6b7280 70%); }
+    .tour-section-title h2 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+    .tour-section-title .count { color: var(--text-muted); font-size: 0.95rem; margin-left: 4px; }
+    .tour-card {
+      background: linear-gradient(180deg, rgba(13,23,44,0.92), rgba(11,18,32,0.92));
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 22px; padding: 20px;
+      text-align: left; min-height: 154px; transition: 0.25s ease; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+    }
+    .tour-card:hover { transform: translateY(-3px); border-color: rgba(96,165,250,0.20); background: linear-gradient(180deg, rgba(16,28,52,0.96), rgba(11,18,32,0.96)); }
+    .tour-card-title { font-size: 1rem; line-height: 1.35; font-weight: 800; margin-bottom: 14px; color: #fff; }
+    .tour-card-meta { display: flex; align-items: center; gap: 8px; color: #b4c0d3; font-size: 0.78rem; margin-bottom: 8px; }
+    .tour-card-meta:last-child { margin-bottom: 0; }
+    .empty-state {
+      grid-column: 1 / -1; text-align: center; padding: 50px 20px; color: var(--text-muted);
+      border: 1px dashed rgba(255,255,255,0.08); border-radius: 22px; background: rgba(255,255,255,0.02);
+    }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+    ::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.72); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(96,165,250,0.92); }
+    @media (max-width: 1180px) { #tourGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 768px) {
+      #worldMapSection { height: 36vh; min-height: 260px; }
+      .selection-header h1 { font-size: 2.1rem; }
+      #tourGrid { grid-template-columns: 1fr; }
+      #tourSelectionContent { padding: 34px 16px 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="selectionScreen">
+    <div class="loader" id="mainLoader" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;"></div>
+    <div id="worldMapSection">
+      <div id="weeklyMap"></div>
+      <div class="weekly-map-overlay"></div>
+      <div class="weekly-map-title">
+        <h2>EjderTurizmle bu hafta dünyayı geziyoruz...</h2>
+        <p id="activeCountriesText">Yükleniyor...</p>
+      </div>
+    </div>
+    <div id="tourSelectionContent">
+      <div class="selection-header">
+        <img src="data:image/png;base64,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" alt="Ejder Turizm" class="ejder-logo-img" />
+        <h1>Planlanmış Turlar</h1>
+        <div class="subtitle">
+          <span class="subtitle-divider"></span>
+          <span>Takip etmek istediğiniz turu seçin</span>
+          <span class="subtitle-divider"></span>
+        </div>
+        <div class="search-container">
+          <input type="text" id="tourSearch" class="search-input" placeholder="Tur adı veya şehir ara...">
+        </div>
+      </div>
+      <div id="tourGrid"></div>
+    </div>
+  </div>
+
+  <div class="app" id="mainApp" style="display:none;">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1 class="tour-name" id="tourTitle">Tur Adı</h1>
+        <div id="tourDateRange" style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;">...</div>
+      </div>
+      <div class="sidebar-content">
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </aside>
+    <main class="main">
+      <div id="map"></div>
+      <div class="theme-palette">
+        <div class="theme-btn" onclick="toggleMap('dark')" title="Karanlık Mod">🌑</div>
+        <div class="theme-btn" onclick="toggleMap('sat')" title="Uydu Görünümü">📡</div>
+        <div class="theme-btn" onclick="toggleMap('light')" title="Sokak Görünümü">🗺️</div>
+      </div>
+      <div class="overlay-info" id="overlayInfo">
+        <div id="ovPhoto" class="city-photo">
+          <div id="photoBack" class="photo-back"></div>
+          <div id="photoFront" class="photo-front"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div id="ovDayNum" style="color:var(--accent);font-weight:700;font-size:0.8rem;"></div>
+          <div id="ovWeather" class="weather-badge">☀️ 22°C</div>
+        </div>
+        <h2 id="ovTitle" style="margin:4px 0 12px;font-size:1.6rem;line-height:1.2;"></h2>
+        <div id="ovDesc" style="font-size:0.95rem;line-height:1.6;color:var(--text-muted);"></div>
+        <div class="travel-stats">
+          <div>
+            <div class="stat-label">Bu Etap</div>
+            <div class="stat-value" id="ovDist">- km</div>
+          </div>
+          <div>
+            <div class="stat-label">Toplam Yol</div>
+            <div class="stat-value" id="ovTotalDist">- km</div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button id="btnPrev" style="background:none;border:none;color:#fff;cursor:pointer;">◀</button>
+        <button id="btnAutoplay" style="background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:30px;cursor:pointer;font-weight:600;font-size:1.1rem;">✈️</button>
+        <button id="btnNext" style="background:none;border:none;color:#fff;cursor:pointer;">▶</button>
+      </div>
+      <div class="fun-fact-card" id="funFactCard">
+        <div style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:8px;">Biliyor muydunuz?</div>
+        <div id="funFactText" style="font-size:0.9rem;line-height:1.5;"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    const API_URL = "https://ejdervip.com/api/tours";
+    let map = null, markers = [], polyline = null;
+    let weeklyMap = null, weeklyMarkers = [], weeklyPolyline = null;
+    let tour = null, selectedIdx = 0, autoplayInterval = null;
+
+    const FUN_FACTS = {
+      'Seul': 'Seul, dünyanın en hızlı internetine ve tek bir şehirdeki en büyük metro hattına sahip şehirlerinden biridir.',
+      'Tokyo': 'Dünyanın en kalabalık metropolü olan Tokyo\u2019da, her gün milyonlarca kişi metro sistemini kullanır.',
+      'Kyoto': 'Kyoto, Japonya\u2019nın en güçlü tarihî dokusunu taşıyan şehirlerinden biridir.',
+      'Hiroşima': 'Hiroşima bugün dünya barışının en önemli sembollerinden biridir.',
+      'Fuji': 'Fuji Dağı, Japonya\u2019nın en ikonik doğal simgelerinden biridir.',
+      'İstanbul': 'İstanbul, dünyada iki kıta üzerine kurulu en önemli metropollerden biridir.',
+      'Singapur': 'Singapur, dünyanın en yeşil şehirlerinden biridir.'
+    };
+
+    const PHOTO_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%23111827'/%3E%3Cstop offset='1' stop-color='%230f172a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3Ctext x='50%25' y='50%25' fill='%239ca3af' font-size='42' font-family='Arial' text-anchor='middle' dominant-baseline='middle'%3EGorsel eklenmedi%3C/text%3E%3C/svg%3E";
+
+    function redPinSVG(selected) {
+      const scale = selected ? 'scale(1.25)' : 'scale(1)';
+      const glow = selected ? 'filter:drop-shadow(0 0 8px rgba(220,30,30,0.95));' : '';
+      return `<div class="location-pin-marker ${selected ? 'selected' : ''}" style="${glow}">
+        <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform:${scale};transition:transform 0.3s;">
+          <path d="M14 0C8.477 0 4 4.477 4 10c0 7.5 10 22 10 22s10-14.5 10-22C24 4.477 19.523 0 14 0z" fill="#E53E3E"/>
+          <path d="M14 0C8.477 0 4 4.477 4 10c0 7.5 10 22 10 22s10-14.5 10-22C24 4.477 19.523 0 14 0z" fill="url(#pinGrad)" opacity="0.6"/>
+          <circle cx="14" cy="10" r="4.5" fill="white" opacity="0.92"/>
+          <defs>
+            <radialGradient id="pinGrad" cx="35%" cy="25%" r="75%">
+              <stop offset="0%" stop-color="#FF8080"/>
+              <stop offset="100%" stop-color="#8B0000"/>
+            </radialGradient>
+          </defs>
+        </svg>
+      </div>`;
+    }
+
+    function parseDate(dateStr) {
+      if (!dateStr) return null;
+      if (typeof dateStr === 'string' && dateStr.includes('.')) {
+        const [day, month, year] = dateStr.split('.');
+        return new Date(year, month - 1, day);
+      }
+      return new Date(dateStr);
+    }
+    function formatDate(date) { return date.toLocaleDateString('tr-TR'); }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+      return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    function updateWeather() {
+      const icons = ['☀️','⛅','☁️','🌧️'];
+      const temp = Math.floor(Math.random()*11)+18;
+      document.getElementById('ovWeather').innerHTML = `${icons[Math.floor(Math.random()*icons.length)]} ${temp}°C`;
+    }
+
+    function showFunFact(city) {
+      const card = document.getElementById('funFactCard');
+      document.getElementById('funFactText').textContent = FUN_FACTS[city] || `${city}, tur programındaki önemli destinasyonlardan biridir.`;
+      card.classList.add('visible');
+      setTimeout(() => card.classList.remove('visible'), 5000);
+    }
+
+    function initWeeklyMap() {
+      if (weeklyMap) { weeklyMap.remove(); }
+      weeklyMap = L.map('weeklyMap', { zoomControl: false, attributionControl: false }).setView([25, 20], 2);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(weeklyMap);
+    }
+
+    function displayWeeklyLocations(days) {
+      if (!weeklyMap) initWeeklyMap();
+      weeklyMarkers.forEach(m => weeklyMap.removeLayer(m));
+      weeklyMarkers = [];
+      if (weeklyPolyline) { weeklyMap.removeLayer(weeklyPolyline); weeklyPolyline = null; }
+
+      const activeText = document.getElementById('activeCountriesText');
+      const points = [];
+      const countries = new Set();
+
+      days.forEach((day, index) => {
+        if (!isFinite(day.lat) || !isFinite(day.lng)) return;
+        if (day.country) countries.add(day.country);
+        points.push([day.lat, day.lng]);
+        const anims   = ['pinPulseA','pinPulseB','pinPulseC','pinPulseD'];
+        const durs    = [2.8, 3.5, 2.2, 4.1, 3.0, 2.6, 3.8];
+        const delays  = [0, 0.9, 1.7, 0.4, 2.3, 1.1, 2.8, 0.6, 3.2, 1.5];
+        const anim    = anims[index % anims.length];
+        const dur     = durs[index % durs.length];
+        const delay   = delays[index % delays.length];
+        const pinHtml = `<div class="weekly-pin-wrap" style="animation:${anim} ${dur}s ease-in-out ${delay}s infinite; transform-origin: bottom center;">
+          <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 0C8.477 0 4 4.477 4 10c0 7.5 10 22 10 22s10-14.5 10-22C24 4.477 19.523 0 14 0z" fill="#E53E3E"/>
+            <path d="M14 0C8.477 0 4 4.477 4 10c0 7.5 10 22 10 22s10-14.5 10-22C24 4.477 19.523 0 14 0z" fill="url(#wg)" opacity="0.55"/>
+            <circle cx="14" cy="10" r="4.5" fill="white" opacity="0.92"/>
+            <defs><radialGradient id="wg" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#FF9090"/><stop offset="100%" stop-color="#7B0000"/></radialGradient></defs>
+          </svg>
+        </div>`;
+        const icon = L.divIcon({ className: '', html: pinHtml, iconSize: [28,36], iconAnchor: [14,36] });
+        const marker = L.marker([day.lat, day.lng], { icon }).addTo(weeklyMap).bindTooltip(day.city || day.country || 'Durak', { permanent: false });
+        weeklyMarkers.push(marker);
+      });
+
+      if (countries.size) {
+        activeText.textContent = `${Array.from(countries).join(', ')} · ${countries.size} ülke`;
+      } else {
+        activeText.textContent = 'Bu hafta aktif tur bulunmuyor';
+      }
+
+      // Ana sayfa haritasında çizgi YOK — sadece pinler
+      if (points.length >= 2) {
+        const bounds = L.latLngBounds(points);
+        weeklyMap.fitBounds(bounds, { padding: [40,40] });
+      } else if (points.length === 1) {
+        weeklyMap.setView(points[0], 5);
+      } else {
+        weeklyMap.setView([25, 20], 2);
+      }
+    }
+
+    window.toggleMap = function(type) {
+      let url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      if (type === 'sat') url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      if (type === 'light') url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      map.eachLayer(layer => { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
+      L.tileLayer(url, { attribution: '© OpenStreetMap' }).addTo(map);
+    }
+
+    async function initApp() {
+      const tourId = new URLSearchParams(window.location.search).get('tourId');
+      if (tourId) {
+        try {
+          const res = await fetch(`${API_URL}/${tourId}`);
+          if (res.ok) { tour = await res.json(); startTourView(); return; }
+        } catch(e) { console.error("Veri hatası", e); }
+      }
+      loadAllTours();
+    }
+
+    async function loadAllTours(query = '') {
+      try {
+        const res = await fetch(API_URL);
+        const tours = await res.json();
+        showSelection(tours, query);
+      } catch(e) { console.error("Bağlantı hatası"); }
+    }
+
+    function showSelection(tours, filter = '') {
+      const grid = document.getElementById('tourGrid');
+      const content = document.getElementById('tourSelectionContent');
+      const worldMapSection = document.getElementById('worldMapSection');
+      const mainLoader = document.getElementById('mainLoader');
+
+      mainLoader.style.display = 'none';
+      content.style.display = 'flex';
+      worldMapSection.style.display = 'block';
+      grid.innerHTML = '';
+
+      const query = filter.toLowerCase().trim();
+      const now = new Date();
+      now.setHours(0,0,0,0);
+
+      const weekStart = new Date(now);
+      const dayOfWeek = weekStart.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      weekStart.setDate(weekStart.getDate() + mondayOffset);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23,59,59,999);
+
+      const pastTours = [], currentTours = [], futureTours = [], weeklyDays = [];
+
+      tours.forEach(t => {
+        if (!t.days || t.days.length === 0) return;
+        if (!t.name || !t.name.toLowerCase().includes(query)) return;
+
+        const firstDay = t.days[0];
+        const lastDay = t.days[t.days.length-1];
+        const startDate = parseDate(firstDay.date);
+        const endDate = parseDate(lastDay.date);
+        if (!startDate || !endDate) return;
+
+        // Tüm tarihleri gün başına normalize et — timezone sorunlarını önler
+        const startDay = new Date(startDate); startDay.setHours(0,0,0,0);
+        const endDay   = new Date(endDate);   endDay.setHours(23,59,59,999);
+
+        const normalizedDays = t.days.map(day => ({ ...day, lat: Number(day.lat), lng: Number(day.lng) }));
+        const tourData = { ...t, days: normalizedDays, startDate, endDate, dateText: `${formatDate(startDate)} - ${formatDate(endDate)}` };
+
+        normalizedDays.forEach(day => {
+          const dayDate = parseDate(day.date);
+          if (dayDate && dayDate >= weekStart && dayDate <= weekEnd) weeklyDays.push(day);
+        });
+
+        // Bugün başlayan tur "Devam Eden"e düşer (startDay === now da dahil)
+        if (endDay < now) {
+          pastTours.push(tourData);
+        } else if (startDay <= now) {
+          currentTours.push(tourData);
+        } else {
+          futureTours.push(tourData);
+        }
+      });
+
+      pastTours.sort((a,b) => b.startDate - a.startDate);
+      currentTours.sort((a,b) => a.startDate - b.startDate);
+      futureTours.sort((a,b) => a.startDate - b.startDate);
+
+      initWeeklyMap();
+      displayWeeklyLocations(weeklyDays);
+
+      const createSection = (title, tours, dotClass, color) => {
+        if (!tours.length) return;
+        const section = document.createElement('div');
+        section.className = 'tour-section-title';
+        section.innerHTML = `<div class="tour-section-dot ${dotClass}"></div><h2 style="color:${color}">${title}</h2><span class="count">(${tours.length})</span>`;
+        grid.appendChild(section);
+        tours.forEach(t => {
+          const card = document.createElement('div');
+          card.className = 'tour-card';
+          card.innerHTML = `
+            <div class="tour-card-title">${t.name}</div>
+            <div class="tour-card-meta"><span>🗓️</span><span>${t.dateText}</span></div>
+            <div class="tour-card-meta"><span>⏱️</span><span>${t.days.length} Gün</span></div>
+          `;
+          card.onclick = () => window.location.search = `?tourId=${t.id}`;
+          grid.appendChild(card);
+        });
+      };
+
+      createSection('Devam Eden Turlar', currentTours, 'red', '#ff4d4f');
+      createSection('Gelecek Turlar', futureTours, 'green', '#00d084');
+      createSection('Geçmiş Turlar', pastTours, 'gray', '#cbd5e1');
+
+      if (!pastTours.length && !currentTours.length && !futureTours.length) {
+        grid.innerHTML = '<div class="empty-state">Aramanıza uygun tur bulunamadı</div>';
+      }
+    }
+
+    function initMap() {
+      if (map) return;
+      map = L.map('map', { zoomControl: false, attributionControl: false }).setView([20,0], 2);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+    }
+
+    function renderTimeline() {
+      const c = document.getElementById('timeline');
+      c.innerHTML = '';
+      tour.days.forEach((day, idx) => {
+        const card = document.createElement('div');
+        card.className = `day-card ${idx === selectedIdx ? 'active' : ''}`;
+        card.innerHTML = `
+          <div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:6px;">${day.date || `Gün ${idx+1}`}</div>
+          <div style="font-size:1rem;font-weight:700;margin-bottom:8px;">${day.city || day.title || 'Durak'}</div>
+          <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.4;">${day.activity || day.description || ''}</div>
+        `;
+        card.onclick = () => selectDay(idx);
+        c.appendChild(card);
+      });
+    }
+
+    function renderSelectedOnMap() {
+      markers.forEach(m => m && map.removeLayer(m));
+      markers = [];
+      if (polyline) { map.removeLayer(polyline); polyline = null; }
+
+      // Tur detay sayfasında rota çizgisi VAR
+      const pts = tour.days.filter(d => isFinite(d.lat) && isFinite(d.lng)).map(d => [d.lat, d.lng]);
+      if (pts.length >= 2) {
+        polyline = L.polyline(pts, { color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '6, 10' }).addTo(map);
+      }
+
+      tour.days.forEach((day, idx) => {
+        if (!isFinite(day.lat) || !isFinite(day.lng)) return;
+        const isSelected = idx === selectedIdx;
+        const pinIcon = L.divIcon({
+          className: '',
+          html: redPinSVG(isSelected),
+          iconSize: [28, 36],
+          iconAnchor: [14, 36],
+          popupAnchor: [0, -36]
+        });
+        markers[idx] = L.marker([day.lat, day.lng], { icon: pinIcon }).addTo(map).on('click', () => selectDay(idx));
+      });
+
+      const selected = tour.days[selectedIdx];
+      if (selected && isFinite(selected.lat) && isFinite(selected.lng)) {
+        map.setView([selected.lat, selected.lng], 6);
+      }
+    }
+
+    function selectDay(idx) { selectedIdx = idx; updateView(); }
+
+    function updateView() {
+      renderTimeline();
+      renderSelectedOnMap();
+
+      const day = tour.days[selectedIdx];
+      const prev = selectedIdx > 0 ? tour.days[selectedIdx-1] : null;
+
+      document.getElementById('tourTitle').textContent = tour.name || 'Tur Adı';
+      document.getElementById('tourDateRange').textContent = tour.dateText || '';
+      document.getElementById('ovDayNum').textContent = day.date || `Gün ${selectedIdx+1}`;
+      document.getElementById('ovTitle').textContent = day.city || day.title || 'Durak';
+      document.getElementById('ovDesc').textContent = day.activity || day.description || '';
+      const selectedPhoto = day.photoUrl || day.photo || PHOTO_PLACEHOLDER;
+      document.getElementById('photoFront').style.backgroundImage = `url('${selectedPhoto}')`;
+      document.getElementById('photoBack').style.backgroundImage = `url('${selectedPhoto}')`;
+      updateWeather();
+
+      let dist = 0;
+      if (prev && isFinite(prev.lat) && isFinite(prev.lng) && isFinite(day.lat) && isFinite(day.lng)) {
+        dist = getDistance(prev.lat, prev.lng, day.lat, day.lng);
+      }
+      document.getElementById('ovDist').textContent = `${dist} km`;
+      document.getElementById('ovTotalDist').textContent = `${selectedIdx === 0 ? 0 : dist} km`;
+      document.getElementById('overlayInfo').classList.add('visible');
+      if (day.city) showFunFact(day.city);
+    }
+
+    function startTourView() {
+      document.getElementById('selectionScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'flex';
+      tour.days = tour.days.map(d => ({ ...d, lat: Number(d.lat), lng: Number(d.lng) }));
+      const startDate = parseDate(tour.days[0]?.date);
+      const endDate = parseDate(tour.days[tour.days.length-1]?.date);
+      if (startDate && endDate) tour.dateText = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+      initMap();
+      updateView();
+      document.getElementById('btnPrev').onclick = () => { selectedIdx = selectedIdx > 0 ? selectedIdx-1 : tour.days.length-1; updateView(); };
+      document.getElementById('btnNext').onclick = () => { selectedIdx = selectedIdx < tour.days.length-1 ? selectedIdx+1 : 0; updateView(); };
+      document.getElementById('btnAutoplay').onclick = () => {
+        if (autoplayInterval) { clearInterval(autoplayInterval); autoplayInterval = null; return; }
+        autoplayInterval = setInterval(() => { selectedIdx = selectedIdx < tour.days.length-1 ? selectedIdx+1 : 0; updateView(); }, 3000);
+      };
+    }
+
+    document.getElementById('tourSearch').addEventListener('input', (e) => loadAllTours(e.target.value));
+    initApp();
+  })();
+  </script>
+</body>
+</html>
