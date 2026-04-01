@@ -682,9 +682,47 @@
         document.getElementById('daysWrapper').style.display = 'block'; renderDays(); updateMap();
       };
 
+      function syncDaysWithSelectedDateRange() {
+        const startValue = document.getElementById('startDate').value;
+        const endValue = document.getElementById('endDate').value;
+        if (!startValue || !endValue || !currentDays.length) return true;
+
+        const start = new Date(startValue + 'T12:00:00');
+        const end = new Date(endValue + 'T12:00:00');
+        if (start > end) {
+          showToast('Başlangıç tarihi bitişten büyük olamaz');
+          return false;
+        }
+
+        // Kaydederken gün sayısını otomatik artırıp/azaltmıyoruz.
+        // Sadece mevcut günleri seçilen başlangıç tarihine göre kaydırıyoruz.
+        const fixedCount = currentDays.length;
+        const shiftedDays = currentDays.map((day, i) => {
+          const nextDate = new Date(start);
+          nextDate.setDate(start.getDate() + i);
+          return {
+            ...day,
+            dayNumber: i + 1,
+            date: nextDate.toISOString().split('T')[0]
+          };
+        });
+
+        currentDays = shiftedDays;
+
+        const computedEnd = currentDays[currentDays.length - 1]?.date;
+        if (computedEnd && endValue !== computedEnd) {
+          document.getElementById('endDate').value = computedEnd;
+          showToast(`Gün sayısı ${fixedCount}. Bitiş tarihi ${computedEnd} olarak güncellendi.`);
+        }
+        return true;
+      }
+
       document.getElementById('saveTour').onclick = async () => {
         const name = document.getElementById('tourName').value;
         if (!name || !currentDays.length) return showToast('Eksik Bilgi!');
+        if (!syncDaysWithSelectedDateRange()) return;
+        renderDays();
+        updateMap();
 
         const tourId = currentTourId || 'tour_' + Date.now();
         const tour = {
