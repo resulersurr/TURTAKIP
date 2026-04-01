@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kayıtlı Turlar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030712;
+      --panel: #111827;
+      --card: #1f2937;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --danger: #ef4444;
+      --success: #10b981;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 28%), var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 760px;
+      flex-wrap: wrap;
+    }
+
+    input,
+    select {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text);
+      font-size: 0.9rem;
+      min-width: 180px;
+    }
+
+    button,
+    .link-btn {
+      border: none;
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fecaca;
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .empty {
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    #toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: #1e293b;
+      border-left: 4px solid var(--success);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.84rem;
+      display: none;
+      z-index: 99;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">Kayıtlı Turlar</h1>
+      <a class="link-btn btn-ghost" href="admin.html">Admin'e Dön</a>
+    </div>
+
+    <div class="toolbar">
+      <input id="searchInput" type="text" placeholder="Tur adı ile ara...">
+      <select id="monthFilter">
+        <option value="">Tüm Aylar</option>
+      </select>
+      <select id="weekFilter">
+        <option value="">Tüm Haftalar</option>
+      </select>
+      <select id="dayFilter">
+        <option value="">Tüm Günler</option>
+        <option value="1">Pazartesi</option>
+        <option value="2">Salı</option>
+        <option value="3">Çarşamba</option>
+        <option value="4">Perşembe</option>
+        <option value="5">Cuma</option>
+        <option value="6">Cumartesi</option>
+        <option value="0">Pazar</option>
+      </select>
+      <button id="refreshBtn" class="btn-primary">Yenile</button>
+    </div>
+
+    <div id="tourList" class="list" style="margin-top:14px;"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    (function () {
+      const API_URL = 'https://ejdervip.com/api/tours';
+      let cachedTours = [];
+
+      const toastEl = document.getElementById('toast');
+      const listEl = document.getElementById('tourList');
+      const searchEl = document.getElementById('searchInput');
+      const monthFilterEl = document.getElementById('monthFilter');
+      const weekFilterEl = document.getElementById('weekFilter');
+      const dayFilterEl = document.getElementById('dayFilter');
+
+      const MONTH_NAMES_TR = [
+        'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+        'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      ];
+
+      const showToast = (message, isError) => {
+        toastEl.textContent = message;
+        toastEl.style.display = 'block';
+        toastEl.style.borderLeftColor = isError ? '#ef4444' : '#10b981';
+        setTimeout(() => { toastEl.style.display = 'none'; }, 2600);
+      };
+
+      const safe = (value) => String(value || '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+
+      const getMonthKey = (dateStr) => {
+        if (!dateStr) return '';
+        const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) return `${m[1]}-${m[2]}`;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        return `${d.getFullYear()}-${month}`;
+      };
+
+      const formatMonthLabel = (monthKey) => {
+        const [year, month] = monthKey.split('-');
+        const idx = Number(month) - 1;
+        if (!year || idx < 0 || idx > 11) return monthKey;
+        return `${MONTH_NAMES_TR[idx]} ${year}`;
+      };
+
+      const getIsoWeekKey = (dateInput) => {
+        if (!dateInput) return '';
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) return '';
+        const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const day = dt.getUTCDay() || 7;
+        dt.setUTCDate(dt.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
+        return `${dt.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+      };
+
+      const formatWeekLabel = (weekKey) => {
+        const m = String(weekKey).match(/^(\d{4})-W(\d{2})$/);
+        if (!m) return weekKey;
+        return `${m[1]} / ${Number(m[2])}. Hafta`;
+      };
+
+      const getTourDates = (tour) => {
+        const dayDates = (tour.days || [])
+          .map(d => d && d.date)
+          .filter(Boolean);
+        if (dayDates.length) return dayDates;
+        return tour.startDate ? [tour.startDate] : [];
+      };
+
+      const parseDateSafe = (value) => {
+        if (!value) return null;
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
+      const getTourFilterData = (tour) => {
+        const dates = getTourDates(tour)
+          .map(parseDateSafe)
+          .filter(Boolean);
+
+        return {
+          monthKeys: Array.from(new Set(dates.map(getMonthKey).filter(Boolean))),
+          weekKeys: Array.from(new Set(dates.map(getIsoWeekKey).filter(Boolean))),
+          dayKeys: Array.from(new Set(dates.map((d) => String(d.getDay()))))
+        };
+      };
+
+      const dayOrder = ['1', '2', '3', '4', '5', '6', '0'];
+
+      const getCurrentFilters = () => ({
+        month: monthFilterEl.value,
+        week: weekFilterEl.value,
+        day: dayFilterEl.value
+      });
+
+      const tourMatchesFilters = (tour, filters) => {
+        const data = getTourFilterData(tour);
+        const monthOk = !filters.month || data.monthKeys.includes(filters.month);
+        const weekOk = !filters.week || data.weekKeys.includes(filters.week);
+        const dayOk = !filters.day || data.dayKeys.includes(filters.day);
+        return monthOk && weekOk && dayOk;
+      };
+
+      const collectAvailableValues = (target, filters) => {
+        const values = new Set();
+        cachedTours.forEach((tour) => {
+          const scopedFilters = {
+            month: target === 'month' ? '' : filters.month,
+            week: target === 'week' ? '' : filters.week,
+            day: target === 'day' ? '' : filters.day
+          };
+
+          if (!tourMatchesFilters(tour, scopedFilters)) return;
+
+          const data = getTourFilterData(tour);
+          if (target === 'month') data.monthKeys.forEach((k) => values.add(k));
+          if (target === 'week') data.weekKeys.forEach((k) => values.add(k));
+          if (target === 'day') data.dayKeys.forEach((k) => values.add(k));
+        });
+        return Array.from(values);
+      };
+
+      const setSelectOptions = (selectEl, defaultLabel, values, formatter, selectedValue) => {
+        selectEl.innerHTML = `<option value="">${defaultLabel}</option>`;
+        values.forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = formatter ? formatter(value) : value;
+          selectEl.appendChild(option);
+        });
+        if (selectedValue && values.includes(selectedValue)) {
+          selectEl.value = selectedValue;
+        }
+      };
+
+      function syncFilterOptions() {
+        const filters = getCurrentFilters();
+
+        const monthValues = collectAvailableValues('month', filters).sort();
+        if (filters.month && !monthValues.includes(filters.month)) filters.month = '';
+
+        const weekValues = collectAvailableValues('week', filters).sort();
+        if (filters.week && !weekValues.includes(filters.week)) filters.week = '';
+
+        const dayValues = collectAvailableValues('day', filters)
+          .filter((d) => dayOrder.includes(d))
+          .sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+        if (filters.day && !dayValues.includes(filters.day)) filters.day = '';
+
+        setSelectOptions(monthFilterEl, 'Tüm Aylar', monthValues, formatMonthLabel, filters.month);
+        setSelectOptions(weekFilterEl, 'Tüm Haftalar', weekValues, formatWeekLabel, filters.week);
+        setSelectOptions(dayFilterEl, 'Tüm Günler', dayValues, (d) => ({
+          '1': 'Pazartesi',
+          '2': 'Salı',
+          '3': 'Çarşamba',
+          '4': 'Perşembe',
+          '5': 'Cuma',
+          '6': 'Cumartesi',
+          '0': 'Pazar'
+        }[d] || d), filters.day);
+
+        return filters;
+      }
+
+      async function loadTours() {
+        try {
+          const res = await fetch(API_URL);
+          if (!res.ok) throw new Error('Liste alınamadı');
+          cachedTours = await res.json();
+          const filters = syncFilterOptions();
+          renderList(filters);
+        } catch (e) {
+          listEl.innerHTML = '<div class="empty">Kayıtlı turlar yüklenemedi.</div>';
+        }
+      }
+
+      function renderList(forcedFilters) {
+        const q = searchEl.value.trim().toLowerCase();
+        const filters = forcedFilters || getCurrentFilters();
+        const tours = cachedTours.filter((t) => {
+          const matchesText = (t.name || '').toLowerCase().includes(q);
+          const matchesFilters = tourMatchesFilters(t, filters);
+          return matchesText && matchesFilters;
+        });
+
+        if (!tours.length) {
+          listEl.innerHTML = '<div class="empty">Gösterilecek tur bulunamadı.</div>';
+          return;
+        }
+
+        listEl.innerHTML = tours.map(t => {
+          const dayCount = (t.days || []).length;
+          return `
+            <div class="card">
+              <div>
+                <div style="font-weight:700;">${safe(t.name)}</div>
+                <div class="meta">${dayCount} Gün • ${safe(t.startDate || '')} - ${safe(t.endDate || '')}</div>
+              </div>
+              <div class="actions">
+                <a class="link-btn btn-ghost" href="passenger.html?tourId=${encodeURIComponent(t.id)}" target="_blank">Yolcu</a>
+                <a class="link-btn btn-primary" href="admin.html?tourId=${encodeURIComponent(t.id)}">Admin'de Aç</a>
+                <button class="btn-ghost" data-action="duplicate" data-id="${safe(t.id)}">Duplicate</button>
+                <button class="btn-danger" data-action="delete" data-id="${safe(t.id)}">Sil</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      async function deleteTour(tourId) {
+        if (!confirm('Bu tur silinsin mi?')) return;
+        try {
+          const res = await fetch(`${API_URL}/${encodeURIComponent(tourId)}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Silinemedi');
+          showToast('Tur silindi');
+          await loadTours();
+        } catch {
+          showToast('Tur silinemedi', true);
+        }
+      }
+
+      async function duplicateTour(tourId) {
+        const source = cachedTours.find(t => t.id === tourId);
+        if (!source) return;
+
+        const duplicateId = `tour_${Date.now()}`;
+        const payload = {
+          id: duplicateId,
+          name: `${source.name || 'Yeni Tur'} (Kopya)`,
+          startDate: source.startDate || null,
+          endDate: source.endDate || null,
+          days: (source.days || []).map((d, i) => ({
+            ...d,
+            id: 0,
+            tourId: duplicateId,
+            dayNumber: i + 1
+          }))
+        };
+
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error('Kopyalanamadı');
+          showToast('Tur kopyalandı');
+          await loadTours();
+        } catch {
+          showToast('Duplicate başarısız', true);
+        }
+      }
+
+      listEl.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        const tourId = button.dataset.id;
+        if (!tourId) return;
+
+        if (action === 'delete') await deleteTour(tourId);
+        if (action === 'duplicate') await duplicateTour(tourId);
+      });
+
+      document.getElementById('refreshBtn').addEventListener('click', loadTours);
+      searchEl.addEventListener('input', renderList);
+      monthFilterEl.addEventListener('change', () => {
+        const filters = syncFilterOptions();
+        renderList(filters);
+      });
+      weekFilterEl.addEventListener('change', () => {
+        const filters = syncFilterOptions();
+        renderList(filters);
+      });
+      dayFilterEl.addEventListener('change', () => {
+        const filters = syncFilterOptions();
+        renderList(filters);
+      });
+
+      loadTours();
+    })();
+  </script>
+</body>
+
+</html>
